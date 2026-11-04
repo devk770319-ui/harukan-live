@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5" />
+<meta name="color-scheme" content="light dark" />
+<title>하루칸 — 하루 한 칸</title>
+<meta name="description" content="쓰기만 하고 끝나지 않는 일기장. 하루 한 칸씩 쌓고, 그 칸들이 나에 대해 말해줍니다. 100% 내 기기에만 저장." />
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#f7f3ec" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#14120f" media="(prefers-color-scheme: dark)" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="하루칸" />
+<link rel="apple-touch-icon" href="icons/icon-180.png" />
+<link rel="icon" href="icons/icon-192.png" />
+<link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+
+<!-- ── 잠금 화면 ─────────────────────────────────────────── -->
+<div id="lockscreen" class="lockscreen" hidden>
+  <div class="lock-box">
+    <div class="pin-mark" aria-hidden="true"></div>
+    <h1 class="lock-title">하루칸</h1>
+    <p class="lock-sub" id="lockSub">숫자 네 자리를 넣어주세요</p>
+    <div class="pin-dots" id="pinDots" role="status" aria-label="입력한 자리 수">
+      <i></i><i></i><i></i><i></i>
+    </div>
+    <p class="lock-err" id="lockErr" role="alert" aria-live="assertive"></p>
+    <div class="keypad" id="keypad"></div>
+    <button type="button" class="lock-bio" id="lockBio" hidden></button>
+    <button type="button" class="lock-forgot" id="lockForgot">비밀번호를 잊으셨나요?</button>
+    <p class="lock-hint">일기는 이 기기 안에만 있어요.</p>
+  </div>
+</div>
+
+<!-- ── 업데이트 안내 (강제) ────────────────────────────────
+     Play 에 새 버전이 있으면 잠금 화면까지 덮는다. 닫는 버튼은 없다.
+     문구는 app.js 의 showUpdateWall() 이 그 언어로 채운다. -->
+<div id="updateWall" class="update-wall" role="alertdialog" aria-modal="true"
+     aria-labelledby="updTitle" aria-describedby="updBody" hidden>
+  <div class="lock-box">
+    <div class="upd-mark" aria-hidden="true"></div>
+    <h1 class="lock-title" id="updTitle">새 버전이 나왔어요</h1>
+    <p class="upd-body" id="updBody">업데이트해야 계속 쓸 수 있어요.</p>
+    <button type="button" class="btn btn-primary btn-block upd-go" id="updGo">업데이트</button>
+    <button type="button" class="lock-forgot" id="updStore">Play 스토어에서 열기</button>
+    <p class="lock-hint" id="updHint">일기는 이 기기에 그대로 남아 있어요. 업데이트해도 지워지지 않아요.</p>
+  </div>
+</div>
+
+<!-- ── 앱 셸 ────────────────────────────────────────────── -->
+<div id="app" class="app" hidden>
+  <header class="topbar" id="topbar">
+    <button class="icon-btn" id="topLeft" type="button" aria-label="뒤로"></button>
+    <h1 class="topbar-title" id="topTitle">하루칸</h1>
+    <div class="topbar-actions" id="topRight"></div>
+  </header>
+
+  <main class="view" id="view" tabindex="-1"></main>
+
+  <nav class="tabbar" id="tabbar" aria-label="주요 메뉴">
+    <a class="tab" href="#/home"     data-tab="home"><span class="tab-ico" data-i="home"></span><span class="tab-label">홈</span></a>
+    <a class="tab" href="#/calendar" data-tab="calendar"><span class="tab-ico" data-i="cal"></span><span class="tab-label">달력</span></a>
+    <a class="tab" href="#/plans"    data-tab="plans"><span class="tab-ico" data-i="list"></span><span class="tab-label">알림</span></a>
+    <button class="tab tab-write" id="tabWrite" type="button" aria-label="오늘 쓰기"><span class="tab-write-plus">+</span></button>
+    <a class="tab" href="#/insights" data-tab="insights"><span class="tab-ico" data-i="chart"></span><span class="tab-label">발견</span></a>
+    <a class="tab" href="#/settings" data-tab="settings"><span class="tab-ico" data-i="gear"></span><span class="tab-label">설정</span></a>
+  </nav>
+</div>
+
+<div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
+<div id="sheetRoot"></div>
+
+<noscript>
+  <div style="padding:32px;font-family:sans-serif">하루칸은 자바스크립트가 필요합니다. 브라우저 설정에서 켜주세요.</div>
+</noscript>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
