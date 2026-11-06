@@ -1,0 +1,349 @@
+/* ===========================================================
+   billing.js — 구글 플레이 결제 (일회성 상품 두 개)
+   cordova-plugin-purchase v13 (Play Billing Library 9) 를 쓴다.
+
+   상품 (1.6.7 부터 플러스가 두 가지 값 — 아래 PLUS_IDS 설명)
+   · remove_ads   — 하루칸 플러스 (광고 제거·일정 무제한·기본 스티커·배경 꾸미기)
+                    이름이 remove_ads 인 것은 광고 제거만 팔던 시절의 ID 라서다. 바꾸면
+                    이미 산 분들의 구매가 인식되지 않는다.
+   · sticker_plus — 스티커 플러스 (1.6.0, 2026-10-18 사용자 결정: 스티커는 따로 판다)
+                    계절·동물·테이프 팩 + 기본 팩
+
+   원칙:
+   · 가격은 코드에 적지 않는다 — Play 콘솔에 등록된 현지 가격 문자열을 그대로 보여준다.
+   · 소유 판정은 이벤트로 온다. 어느 경로로든 "샀다"가 확인되면 onOwned(상품 ID) 를
+     상품마다 딱 한 번 부른다 (구매 직후든, 재설치 후 부팅이든).
+   · 웹이나 플러그인이 없는 환경에서는 전부 조용히 꺼진다.
+
+   출시 전 할 일: Play 콘솔 → 수익 창출 → 인앱 상품에 위 ID 를 비소모성으로 등록해야 한다.
+   =========================================================== */
+
+import { isNative } from './native.js';
+import * as analytics from './analytics.js';
+
+export const PRODUCT_REMOVE_ADS = 'remove_ads';     // Play 콘솔의 상품 ID 와 반드시 일치
+export const PRODUCT_STICKER_PLUS = 'sticker_plus';
+/* 하루칸 플러스 ₩9,900 (1.6.7, 2026-10-19 사용자 결정: 가격 인상).
+   하나의 상품을 사람마다 다른 값에 팔 수는 없어서 상품을 하나 더 만들었다.
+   · remove_ads — ₩4,990. 가격 인상 전부터 쓰던 사람(priceTier 'legacy')에게 보여준다
+   · plus_9900  — ₩9,900. 그 뒤에 설치한 사람('new')에게 보여준다 (해외도 나라별로 두 배)
+   둘 중 무엇을 샀든 하루칸 플러스다. 복원·기기 변경 때도 둘 다 확인한다. */
+export const PRODUCT_PLUS_V2 = 'plus_9900';
+/* plus_lifetime (2026-11-04 사용자 결정: 평생 ₩49,000 · 월 ₩1,900, 미국·영국 월 ₩3,900) — 이 코드가 처음 도는 때 자료가 하나도 없던 새 설치('v3')에게만 판다.
+   기존 사용자는 본래 가격(remove_ads / plus_9900) 그대로. 스토어에 아직 없으면 plus_9900 으로 판다 (무엇도 안 깨지게) */
+export const PRODUCT_PLUS_V3 = 'plus_lifetime';
+export const PLUS_IDS = [PRODUCT_REMOVE_ADS, PRODUCT_PLUS_V2, PRODUCT_PLUS_V3];
+/* 스티커 플러스는 1.6.6 에서 없앴다 (스티커는 하루칸 플러스에 포함). 상품도 만들지 않았으니 묻지 않는다 */
+const PRODUCTS = [...PLUS_IDS];
+/* 하루칸 플러스 월 이용권 (정기 결제, 2026-11-03 사용자 결정) — 기본 요금제 'monthly'(1개월 자동 갱신),
+   앱 체험 중에 사면 남은 체험 일수만큼 무료 체험 offer('trial-<n>d', 3~30일)를 골라 체험이 끝나는 날 첫 결제 → 이용 기간 = 남은 체험 + 1개월 */
+export const PRODUCT_MONTHLY = 'plus_monthly';
+export const MONTHLY_PLAN = 'monthly';
+const SUBS = [PRODUCT_MONTHLY];
+let onSubCb = null;
+
+/* 이 사람에게 팔 플러스 상품 — app.js 가 priceTier 를 보고 정해 준다. 모르면 예전 값(사용자에게 유리한 쪽) */
+let plusTier = 'legacy';
+export function setPlusTier(tier) { plusTier = tier === 'new' || tier === 'v3' ? tier : 'legacy'; }
+export function plusTierNow() { return plusTier; }
+/** 이 사람에게 팔 플러스 상품 ID. 'v3' 인데 plus_lifetime 이 스토어에 없으면(등록 전·연결 전) plus_9900 */
+export function plusProductId() {
+  if (plusTier === 'v3') return product(PRODUCT_PLUS_V3)?.getOffer?.() ? PRODUCT_PLUS_V3 : PRODUCT_PLUS_V2;
+  return plusTier === 'new' ? PRODUCT_PLUS_V2 : PRODUCT_REMOVE_ADS;
+}
+
+let inited = false;
+const ownedFired = new Set();
+let onOwnedCb = null;
+let ordering = null;      // 이 실행에서 사용자가 구매 버튼으로 결제를 시작한 상품 ID
+/* 결제 창이 떠 있는 동안 앱이 메모리에서 정리되면(저가폰) 승인은 다음 실행에서 온다 → 시작 기록을 30분 남긴다 (2026-10-29: 첫 실결제가 분석에 안 잡힘) */
+const K_ORDER = 'hk.ordering';
+function saveOrdering(id) { try { if (id) localStorage.setItem(K_ORDER, JSON.stringify({ id, at: Date.now() })); else localStorage.removeItem(K_ORDER); } catch { /* 저장 못 함 */ } }
+function pendingOrdering() { try { const o = JSON.parse(localStorage.getItem(K_ORDER) || 'null'); return o && Date.now() - o.at < 30 * 60000 ? o.id : null; } catch { return null; } }
+
+function CP() { return window.CdvPurchase || null; }
+
+/* ── 결제 서명 확인 (2026-11-02, 사용자 "오결제 방지 키 값 적용했어?") ─────────────
+   결제 우회 앱은 가짜 구매 내역을 돌려준다 — 서명이 없거나 맞지 않는다.
+   Play Console › 수익 창출 설정 › 라이선스의 공개 키로 구글이 만든 서명인지 이 기기에서 확인한다.
+   · 맞음 → 지금처럼 마무리하고 플러스
+   · 틀림·없음 → 마무리도 지급도 하지 않는다 (plus:sig_bad / plus:sig_missing)
+   · 우리 쪽 키·WebCrypto 문제 → 막지 않는다 (plus:sig_keyerror) — 진짜 산 사람을 막지 않기 위해
+   이미 플러스로 저장된 사람(adFree)은 건드리지 않는다. 새로 주는 순간만 확인한다.
+   공개 키라 코드에 두어도 된다. */
+const LICENSE_KEY = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArwMUT0pBiPZlUxYNYYONaOoi4Rvqpuhzal5OftxIod67sEXE4I5g8oYCpBtcbRf4k4+PE755I3aMZeMuaaWudaa6DjTmSewGNYIbcSY4UQQY4mcFfQyDgeSMA3Y2b0QQw6fqCLknAda7oY+6G1cQGLS937uyrqbFka6tZASovytwdpfLaFvpjdf34jF4ZjJhtetG8MUsfkThEWNkztV9/4EQplW5ZEE/oifN3io/Q583Ze+OcAV19gcsjKj7p9ocHiAg5Z4iTq/lbknTtoI/e42XlDinBStcV9h1Vi1IG+W0CzTnrOhyTfpkOFS/v+ZJ+xfczWYzfJEzIpKbRBs3QwIDAQAB';
+const PKGS = ['app.harukan.diary', 'app.harukan.diary.dev'];
+let keyB64 = LICENSE_KEY;
+let keyP = null;
+/** 시험 전용: 다른 공개 키로 바꾼다 */
+export function __setKeyForTest(k) { keyB64 = k; keyP = null; }
+function b64Bytes(b64) {
+  const bin = atob(String(b64).replace(/\s+/g, ''));
+  const u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return u;
+}
+function pubKey() {
+  if (!keyP) keyP = crypto.subtle.importKey('spki', b64Bytes(keyB64), { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-1' }, false, ['verify']);
+  return keyP;
+}
+/** 구글 구매 내역(원본 JSON 문자열)과 서명 확인. 'ok' | 'bad' | 'missing' | 'keyerror' */
+export async function verifyGoogle(receipt, signature, productId = null) {
+  if (!receipt || !signature) return 'missing';
+  let j;
+  try { j = JSON.parse(receipt); } catch { return 'bad'; }
+  if (!PKGS.includes(j.packageName)) return 'bad';
+  const pids = j.productIds || (j.productId ? [j.productId] : []);
+  if (productId && pids.length && !pids.includes(productId)) return 'bad';
+  if (j.purchaseState !== undefined && j.purchaseState !== 0) return 'bad';   // 0 = 구매됨 (4 = 대기)
+  let key;
+  try { if (!globalThis.crypto?.subtle) return 'keyerror'; key = await pubKey(); }
+  catch { keyP = null; return 'keyerror'; }
+  try {
+    const ok = await crypto.subtle.verify({ name: 'RSASSA-PKCS1-v1_5' }, key, b64Bytes(signature), new TextEncoder().encode(receipt));
+    return ok ? 'ok' : 'bad';
+  } catch { return 'bad'; }
+}
+const sigLogged = new Set();
+function sigLog(ev) { if (sigLogged.has(ev)) return; sigLogged.add(ev); try { analytics.design(ev); } catch { /* */ } }
+/** 거래 하나의 서명 결과 — 지급해도 되면 true */
+async function txOk(tx, id) {
+  const np = tx?.nativePurchase || {};
+  const v = await verifyGoogle(np.receipt, np.signature, id);
+  if (v === 'ok') return true;
+  if (v === 'keyerror') { sigLog('plus:sig_keyerror'); return true; }
+  sigLog('plus:sig_' + v);
+  return false;
+}
+/** 갖고 있다고 나온 상품이 서명이 맞는 구매 내역으로 뒷받침되는가 (재설치·부팅·복원) */
+async function ownedVerified(id) {
+  const recs = CP()?.store?.localReceipts || [];
+  for (const r of recs) for (const t of r.transactions || []) {
+    if (!(t.products || []).some((x) => x.id === id)) continue;
+    if (await txOk(t, id)) return true;
+  }
+  if (!recs.length) sigLog('plus:sig_noreceipt');
+  return false;
+}
+async function grantIfVerified(id) {
+  if (ownedFired.has(id)) return;
+  if (await ownedVerified(id)) fireOwned(id);
+}
+
+function product(id = plusProductId()) {
+  const cp = CP();
+  try { return cp?.store?.get(id, cp.Platform.GOOGLE_PLAY) || null; }
+  catch { return null; }
+}
+
+function fireOwned(id) {
+  if (ownedFired.has(id)) return;
+  ownedFired.add(id);
+  try { onOwnedCb?.(id); } catch (e) { console.error(e); }
+}
+
+/* 카카오 웹뷰처럼 플러그인 주입이 살짝 늦는 경우가 있어 잠깐 기다려 본다 */
+async function waitForPlugin(ms = 3000) {
+  const t0 = Date.now();
+  while (!CP() && Date.now() - t0 < ms) await new Promise((r) => setTimeout(r, 150));
+  return CP();
+}
+
+/**
+ * 부팅 때 한 번 부른다.
+ * @param {{onOwned: (productId: string) => void}} opts  소유가 확인되면 (상품마다 딱 한 번) 불린다
+ */
+export async function init({ onOwned, onSub } = {}) {
+  onOwnedCb = onOwned || null;
+  onSubCb = onSub || null;
+  if (!isNative()) return;
+  const cp = await waitForPlugin();
+  if (!cp) return;
+
+  const { store, ProductType, Platform, LogLevel } = cp;
+  try {
+    store.verbosity = LogLevel.ERROR;
+    store.register(PRODUCTS.map((id) => ({ id, type: ProductType.NON_CONSUMABLE, platform: Platform.GOOGLE_PLAY })));
+    store.register(SUBS.map((id) => ({ id, type: ProductType.PAID_SUBSCRIPTION, platform: Platform.GOOGLE_PLAY })));
+
+    store.when()
+      // 결제 승인 → 검증 서버는 없고, 이 기기에서 구글 서명을 확인한 뒤 마무리하고 소유 처리
+      .approved(async (tx) => {
+        /* 월 이용권(정기 결제): 서명 확인 → 마무리(구독 승인) → 플러스 켬 */
+        const subs = (tx.products || []).filter((p) => SUBS.includes(p.id));
+        if (subs.length) {
+          if (!(await txOk(tx, subs[0].id))) return;
+          try { tx.finish(); } catch { /* 이미 끝난 거래 */ }
+          if (ordering === subs[0].id || pendingOrdering() === subs[0].id) {
+            ordering = null; saveOrdering(null);
+            analytics.design('plus:sub:buy:done');
+          }
+          await syncSub(true);
+          return;
+        }
+        /* 서명이 맞을 때만 마무리하고 지급한다 (2026-11-02) — 가짜 구매는 마무리하지 않아 Play 가 사흘 뒤 되돌린다 */
+        const ours = (tx.products || []).filter((p) => PRODUCTS.includes(p.id));
+        if (ours.length && !(await txOk(tx, ours[0].id))) return;
+        try { tx.finish(); } catch { /* 이미 끝난 거래 */ }
+        for (const p of tx.products || []) {
+          if (!PRODUCTS.includes(p.id)) continue;
+          /* 이번에 사용자가 직접 산 것만 결제 통계로 센다 (복원·재설치는 빼고) */
+          if (ordering === p.id || pendingOrdering() === p.id) {
+            ordering = null; saveOrdering(null);
+            const pr = product(p.id)?.pricing;
+            if (pr?.priceMicros && pr?.currency) analytics.business(p.id, pr.priceMicros / 10000, pr.currency);
+            analytics.design(p.id === PRODUCT_STICKER_PLUS ? 'stickerplus:purchased' : 'plus:purchased');
+          }
+          fireOwned(p.id);
+        }
+      })
+      // 재설치·기기 변경: 스토어가 보유 내역을 되돌려줄 때
+      .productUpdated((p) => {
+        if (PRODUCTS.includes(p?.id) && p.owned) grantIfVerified(p.id);
+        if (SUBS.includes(p?.id) && inited) syncSub();
+      });
+    try { store.when().receiptUpdated?.(() => { if (inited) syncSub(); }); } catch { /* 옛 플러그인 */ }
+
+    await store.initialize([Platform.GOOGLE_PLAY]);
+    inited = true;
+
+    for (const id of PRODUCTS) if (product(id)?.owned) await grantIfVerified(id);
+    await syncSub();
+  } catch (e) {
+    console.error('결제 초기화 실패', e);
+  }
+}
+
+/** 월 이용권 보유 상태를 Play 와 맞춘다. 스토어에 연결돼 상품을 받은 뒤에만 '꺼짐'을 믿는다 (연결 실패를 해지로 보지 않는다) */
+let subSyncing = null;
+export function syncSub(fresh = false) {
+  if (subSyncing && !fresh) return subSyncing;
+  subSyncing = (async () => {
+    try {
+      const p = product(PRODUCT_MONTHLY);
+      if (!p) return;                                   // 상품을 아직 못 받았다 — 판단 보류
+      const active = !!p.owned && await ownedVerified(PRODUCT_MONTHLY);
+      const changed = await onSubCb?.(active);
+      if (changed) analytics.design(active ? 'plus:sub:active' : 'plus:sub:expired');
+    } catch (e) { console.error('월 이용권 확인', e); }
+  })().finally(() => { subSyncing = null; });
+  return subSyncing;
+}
+
+/** 월 이용권 자동 갱신 상태 (2026-11-04 평생 구매 뒤 해지 안내): 'none' 안 가짐 · 'renewing' 다음 달에도 결제됨 · 'lapsing' 해지함(기간 끝까지만).
+    구글 구매 정보의 autoRenewing(플러그인이 renewalIntent 로도 둔다)을 본다. 알 수 없으면 'renewing' — 안내를 못 보는 쪽보다 한 번 더 보는 쪽이 낫다 */
+export function monthlyRenewState() {
+  if (!product(PRODUCT_MONTHLY)?.owned) return 'none';
+  let seen = false, renew = false;
+  for (const r of CP()?.store?.localReceipts || []) for (const tx of r.transactions || []) {
+    if (!(tx.products || []).some((x) => x.id === PRODUCT_MONTHLY)) continue;
+    seen = true;
+    let ar = tx.nativePurchase?.autoRenewing;
+    if (typeof ar !== 'boolean' && tx.renewalIntent) ar = tx.renewalIntent === 'Renew';
+    if (typeof ar !== 'boolean') { try { ar = JSON.parse(tx.nativePurchase?.receipt || '{}').autoRenewing; } catch { /* */ } }
+    if (ar !== false) renew = true;
+  }
+  return !seen || renew ? 'renewing' : 'lapsing';
+}
+/** Play 에 보유 내역을 다시 물어 본다 (Play 스토어에서 해지하고 돌아왔을 때). 구글은 창 없이 조용히 조회만 한다 */
+export async function refresh() {
+  if (!inited) return;
+  try { await CP().store.restorePurchases(); } catch { /* 연결 실패 — 다음에 */ }
+  await syncSub(true);
+}
+
+/** 가격 숫자(백만분의 1 단위). 평생 이용권 '몇 달이면 본전' 계산용. 모르면 null */
+export function priceMicros(id = plusProductId()) { const m = product(id)?.pricing?.priceMicros; return m > 0 ? m : null; }
+export function monthlyPriceMicros() {
+  const p = product(PRODUCT_MONTHLY);
+  const base = (p?.offers || []).find((o) => o.id === `${PRODUCT_MONTHLY}@${MONTHLY_PLAN}`) || p?.offers?.[0];
+  const ph = base?.pricingPhases || [];
+  const m = (ph[ph.length - 1] || ph[0])?.priceMicros;
+  return m > 0 ? m : null;
+}
+/** 월 이용권 가격 문자열 (예: "₩1,900"). 기본 요금제의 반복 가격 */
+export function monthlyPriceText() {
+  const p = product(PRODUCT_MONTHLY);
+  const base = (p?.offers || []).find((o) => o.id === `${PRODUCT_MONTHLY}@${MONTHLY_PLAN}`) || p?.offers?.[0];
+  const ph = base?.pricingPhases || [];
+  return (ph[ph.length - 1] || ph[0])?.price || null;
+}
+
+/** 남은 체험 일수에 맞는 무료 체험 offer (없으면 null). Play 는 받을 수 있는 offer 만 돌려준다 (처음 사는 사람만) */
+export function trialOfferFor(days) {
+  if (!days || days < 3) return null;
+  const p = product(PRODUCT_MONTHLY);
+  let best = null, bestN = 0;
+  for (const o of p?.offers || []) {
+    const m = /@trial-(\d+)d$/.exec(o.id || '');
+    if (!m) continue;
+    const k = +m[1];
+    if (k <= days && k > bestN) { best = o; bestN = k; }
+  }
+  return best ? { offer: best, days: bestN } : null;
+}
+
+/**
+ * 월 이용권 구매. trialDays = 앱 체험이 남은 날 (그만큼 무료 체험 offer 로 산다 → 첫 결제는 체험이 끝나는 날)
+ * 결과: { r: 'ok'|'no-product'|'error', trialDays: 실제로 붙은 무료 일수 }
+ */
+export async function buyMonthly(trialDays = 0) {
+  try { window.__hkOutAt = Date.now(); } catch { /* */ }
+  if (!inited) return { r: 'error', trialDays: 0 };
+  const p = product(PRODUCT_MONTHLY);
+  if (!p) return { r: 'no-product', trialDays: 0 };
+  const tr = trialOfferFor(trialDays);
+  const base = (p.offers || []).find((o) => o.id === `${PRODUCT_MONTHLY}@${MONTHLY_PLAN}`) || p.getOffer?.();
+  const offer = tr?.offer || base;
+  if (!offer) return { r: 'no-product', trialDays: 0 };
+  try {
+    ordering = PRODUCT_MONTHLY; saveOrdering(PRODUCT_MONTHLY);
+    if (tr) analytics.design('plus:sub:trial_offer:' + tr.days);
+    analytics.design('plus:sub:buy:start');
+    const err = await CP().store.order(offer);
+    if (err) { ordering = null; saveOrdering(null); }
+    return { r: err ? 'error' : 'ok', trialDays: tr ? tr.days : 0 };
+  } catch { return { r: 'error', trialDays: 0 }; }
+}
+
+/** 결제를 쓸 수 있는 상태인가 */
+export function available() { return inited; }
+
+/** 콘솔에 설정된 현지 가격 문자열 (예: "₩1,990"). 아직 모르면 null */
+export function priceText(id = plusProductId()) {
+  return product(id)?.pricing?.price || null;
+}
+
+/**
+ * 구매를 시작한다.
+ * 결과: 'ok'(구글 결제창까지 정상 진행) | 'no-product'(스토어에 상품 없음) | 'error'
+ * 실제 소유 확정은 approved 이벤트 → onOwned 로 온다.
+ */
+export async function buy(id) {
+  try { window.__hkOutAt = Date.now(); } catch { /* */ }   // 일부러 다른 화면으로 — 곧 숨겨져도 돌아올 때 다시 잠그지 않는다 (2026-11-01)
+  if (!inited) return 'error';
+  const offer = product(id)?.getOffer?.();
+  if (!offer) return 'no-product';
+  try {
+    ordering = id; saveOrdering(id);
+    const err = await CP().store.order(offer);
+    if (err) { ordering = null; saveOrdering(null); }
+    return err ? 'error' : 'ok';
+  } catch { return 'error'; }
+}
+
+/** 하루칸 플러스 구매 (예전 이름 그대로 둔다) */
+export function buyRemoveAds() { return buy(plusProductId()); }
+
+/** 구매 내역 복원. 복원 후 무엇을 갖고 있는지 돌려준다 */
+export async function restore() {
+  if (!inited) return { plus: false, stickers: false };
+  try { await CP().store.restorePurchases(); } catch { /* 취소 등 */ }
+  const ownedPlus = [];
+  for (const id of PLUS_IDS) if (product(id)?.owned && await ownedVerified(id)) ownedPlus.push(id);   // 서명 확인 (2026-11-02)
+  const res = { plus: ownedPlus.length > 0, stickers: false };
+  for (const id of ownedPlus) fireOwned(id);
+  await syncSub(true);
+  if (product(PRODUCT_MONTHLY)?.owned) res.plus = true;
+  return res;
+}
