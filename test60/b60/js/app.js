@@ -1299,7 +1299,9 @@ async function boot() {
   let liveP = null;
   if (native.isNative()) {
     const lm = import('./liveupdate.js');
-    liveP = lm.then((m) => { m.start(); return m.decided(); }).catch(() => {});
+    /* 새로 설치해 처음 켜는 사람인지는 지금 본다 — 조금 뒤 finishBoot 의 syncTrial 이 체험 시각을 적기 전에 (신규만 내려받기 화면, 2026-11-06) */
+    const newUser = !store.getSettings().trialStartedAt;
+    liveP = lm.then((m) => { m.start({ newUser }); return m.decided(); }).catch(() => {});
     liveSettled = lm.then((m) => m.settled()).catch(() => {});
   }
   const updP = enforceUpdate({ force: true });   // 기다리지 않는다. 답이 오면 그때 덮는다

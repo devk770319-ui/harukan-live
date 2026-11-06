@@ -115,7 +115,10 @@ export function settled() { return P() ? settledP : Promise.resolve(); }
 /** 내려받기 화면을 띄울지 말지 정했다 */
 export function decided() { return P() ? decidedP : Promise.resolve(); }
 let applying = false;
-export async function start() {
+let newUser = false;
+/** opts.newUser: app.js 가 체험 시각을 적기 전에 본 값 (없으면 지금 설정으로 판단) */
+export async function start(opts = {}) {
+  newUser = typeof opts.newUser === 'boolean' ? opts.newUser : isNewUser();
   const L = P();
   if (!L) { settle(); return; }
   if (running) return;
@@ -126,7 +129,8 @@ export async function start() {
     if (info.rolledBack) analytics.design('live:rolledBack');
 
     /* 2. 받아 둔 새 묶음 → 지금 바꾼다 */
-    if (info.staged > info.current && info.stagedPath && !busy()) {
+    const tapped = window.__hkTapAt && Date.now() - window.__hkTapAt < 15000;   // 알림을 눌러 막 들어왔으면 이번엔 안 바꾼다
+    if (info.staged > info.current && info.stagedPath && !busy() && !tapped) {
       /* 조용히 (2026-11-06 사용자: '받아 놨다가 다음에 켤 때 적용') — 안내 화면 없이 켜지는 순간 바로 바꾼다 */
       analytics.design('live:applyStaged');
       applying = true;                                  // apply 가 돌아오기 전에 웹뷰가 닫힐 수 있다 — 먼저 적는다
@@ -144,7 +148,7 @@ export async function start() {
 
     /* 내려받기 화면은 새로 설치한 사람의 첫 실행에서만 (2026-11-06 사용자: '신규 사용자는 다운로드 받게').
        이미 쓰던 사람은 조용히 받아 두고 다음에 켤 때 바꾼다 */
-    const fg = foregroundOk() && isNewUser();
+    const fg = foregroundOk() && newUser;
     if (fg) showOverlay(false);
     else settle();       // 조용히 받아 두는 경우 — 잠금 화면은 기다릴 것 없다
     const sub = await L.addListener('progress', (e) => setProgress(e.done, e.total));
