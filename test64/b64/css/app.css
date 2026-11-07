@@ -2662,3 +2662,9 @@ html.pv-open #tabbar, html.pv-open.has-ad::after{ visibility:hidden; }
 .songs-mn{ font-size:.82rem; color:var(--muted); }
 .songs-chev svg{ width:18px; height:18px; fill:none; stroke:var(--muted-2); stroke-width:2; transition:transform .2s; }
 .songs-sec.open .songs-chev svg{ transform:rotate(180deg); }
+
+/* 내가 고른 음악: 연도·월 드롭박스 (2026-11-08 사용자: 버튼 대신 드롭박스) */
+.songs-pickbar{ display:flex; gap:10px; margin:0 0 6px; }
+.songs-pick{ flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+.songs-pick-l{ font-size:.76rem; color:var(--muted); padding-left:4px; }
+.songs-sel{ appearance:auto; width:100%; padding:11px 12px; border-radius:14px; border:1px solid var(--line); background:var(--card); color:var(--ink); font-weight:700; }

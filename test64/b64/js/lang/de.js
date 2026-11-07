@@ -1898,4 +1898,8 @@ export const DICT = {
   '일기에 넣은 노래 {n}곡 · 일기 날짜 순': '{n} Songs aus dem Tagebuch · nach Datum',
   '{n}곡|1': '{n} Song',
   '일기에 넣은 노래 {n}곡 · 일기 날짜 순|1': '{n} Song aus dem Tagebuch · nach Datum',
+  /* 내가 고른 음악 드롭박스 (2026-11-08) */
+  '연도': 'Jahr',
+  '월': 'Monat',
+  '모든 달': 'Alle Monate',
 };

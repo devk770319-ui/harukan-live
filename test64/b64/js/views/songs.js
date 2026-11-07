@@ -47,7 +47,23 @@ function songRow(e) {
 }
 
 /* 2026-11-08 사용자: '목록도 연도별·월별로 — 일기가 많아지면 한 번에 보여 주는 게 버겁다'
-   → 위에 연도 고르기(한 해씩), 아래는 달마다 접힌 묶음(맨 위 달만 펼침). 줄은 펼칠 때 그린다 */
+   → 처음엔 연도 버튼을 늘어놓았는데 '연도가 많아질수록 버튼이 계속 생긴다, 드롭박스로' (같은 날)
+   → 위에 [연도 ▾] [월 ▾] 드롭박스 두 개. 월은 '모든 달'(달마다 접힌 묶음, 가장 최근 달만 펼침) 또는 한 달만.
+   줄은 펼칠 때 그린다. 고른 연도·월은 주소(?y=&m=)에 남아 뒤로 가기에도 그대로 */
+function pickBox(label, options, value, onPick) {
+  const wrap = el('label', { class: 'songs-pick' });
+  wrap.append(el('span', { class: 'songs-pick-l' }, esc(label)));
+  const sel = el('select', { class: 'songs-sel', 'aria-label': label });
+  for (const o of options) {
+    const op = el('option', { value: o.value }, esc(o.label));
+    if (o.value === value) op.selected = true;
+    sel.append(op);
+  }
+  sel.addEventListener('change', () => onPick(sel.value));
+  wrap.append(sel);
+  return wrap;
+}
+
 export async function render(root, params = {}) {
   const all = songEntries();
   const head = { title: t('내가 고른 음악'), left: { icon: 'back', onClick: back } };
@@ -64,24 +80,27 @@ export async function render(root, params = {}) {
   const years = [...new Set(all.map((e) => e.date.slice(0, 4)))];          // 최근 해가 먼저 (all 이 날짜 최근 순)
   const y = years.includes(String(params.y)) ? String(params.y) : years[0];
   const list = all.filter((e) => e.date.startsWith(y));
+  const months = [...new Set(list.map((e) => e.date.slice(0, 7)))];
+  const m = months.includes(String(params.m)) ? String(params.m) : 'all';
+  const cnt = (pre) => all.filter((e) => e.date.startsWith(pre)).length;
 
   root.append(el('div', { class: 'note', style: 'margin:6px 4px 12px' },
     esc(t('일기에 넣은 노래를 일기 날짜 순서로 모았어요.')) + ' · ' + esc(t('{n}곡', { n: all.length }))));
 
-  if (years.length > 1) {
-    const yr = el('div', { class: 'songs-years', role: 'tablist' });
-    for (const yy of years) {
-      const n = all.filter((e) => e.date.startsWith(yy)).length;
-      const c = el('button', { class: 'songs-year' + (yy === y ? ' on' : ''), type: 'button', role: 'tab', 'aria-selected': String(yy === y) },
-        `<b>${esc(yy)}</b><span>${esc(t('{n}곡', { n }))}</span>`);
-      c.addEventListener('click', () => { if (yy !== y) { analytics.design('songs:year'); go(`/songs?y=${yy}`, { replace: true }); } });
-      yr.append(c);
-    }
-    root.append(yr);
-  }
+  const bar = el('div', { class: 'songs-pickbar' });
+  bar.append(
+    pickBox(t('연도'), years.map((yy) => ({ value: yy, label: `${yy} · ${t('{n}곡', { n: cnt(yy) })}` })), y, (v) => {
+      analytics.design('songs:year'); go(`/songs?y=${v}`, { replace: true });
+    }),
+    pickBox(t('월'), [{ value: 'all', label: `${t('모든 달')} · ${t('{n}곡', { n: list.length })}` }]
+      .concat(months.map((ym) => ({ value: ym, label: `${monthTitle(+ym.slice(0, 4), +ym.slice(5, 7))} · ${t('{n}곡', { n: cnt(ym) })}` }))), m, (v) => {
+      analytics.design('songs:month'); go(v === 'all' ? `/songs?y=${y}` : `/songs?y=${y}&m=${v}`, { replace: true });
+    }),
+  );
+  root.append(bar);
 
-  const months = [...new Set(list.map((e) => e.date.slice(0, 7)))];
-  months.forEach((ym, i) => {
+  const shown = m === 'all' ? months : [m];
+  shown.forEach((ym, i) => {
     const items = list.filter((e) => e.date.startsWith(ym));
     const sec = el('div', { class: 'songs-sec' });
     const hb = el('button', { class: 'songs-mhead', type: 'button', 'aria-expanded': 'false' },
@@ -97,7 +116,7 @@ export async function render(root, params = {}) {
     hb.addEventListener('click', () => toggle(box.hidden));
     sec.append(hb, box);
     root.append(sec);
-    if (i === 0) toggle(true);                                    // 가장 최근 달만 펼쳐 둔다
+    if (i === 0) toggle(true);                                    // 한 달만 골랐으면 그 달, '모든 달'이면 가장 최근 달만 펼쳐 둔다
   });
   return head;
 }

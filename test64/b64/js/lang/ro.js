@@ -1844,4 +1844,8 @@ export const DICT = {
   '일기에 넣은 노래 {n}곡 · 일기 날짜 순': '{n} melodii din jurnal · după dată',
   '{n}곡|1': '{n} melodie',
   '일기에 넣은 노래 {n}곡 · 일기 날짜 순|1': '{n} melodie din jurnal · după dată',
+  /* 내가 고른 음악 드롭박스 (2026-11-08) */
+  '연도': 'An',
+  '월': 'Lună',
+  '모든 달': 'Toate lunile',
 };
