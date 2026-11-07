@@ -35,7 +35,7 @@ const TEST_DEVICES = ['E156941724EF540240C26F9B251417A6'];   // 갤럭시 S25 (S
    지난 글을 읽는 동안은 오래 머문다.
    설정도 넣는다 — 플러스를 권하는 줄과 같은 화면에 배너가 떠 있어야
    무엇을 없애려고 돈을 내는지 눈으로 보인다. */
-const SHOW_ON = new Set(['home', 'calendar', 'insights', 'plans', 'settings', 'entry']);
+const SHOW_ON = new Set(['home', 'calendar', 'insights', 'plans', 'settings', 'entry', 'songs']);   // 내가 고른 음악도 훑어보는 화면 (2026-11-08)
 
 let ready = false;        // initialize 까지 끝났나
 let shown = false;        // showBanner 를 한 번이라도 불렀나

@@ -235,7 +235,7 @@ const K_CHECK = 'hk.liveCheckAt';
 const CHECK_EVERY = 3600e3;
 /* 다른 앱에 이만큼 넘게 가 있다 돌아오면 '다시 켠 것'으로 보고 받아 둔 묶음으로 바꾼다 (2026-11-06 사용자: 다음에 켤 때 적용 — 1분에서 30분으로) */
 const AWAY_MIN = 30 * 60e3;
-const SAFE_ROUTES = new Set(['home', 'calendar', 'insights', 'plans', 'settings', 'entry', 'habits', 'habit', 'notices', 'search', 'trash', 'map']);
+const SAFE_ROUTES = new Set(['home', 'calendar', 'insights', 'plans', 'settings', 'entry', 'habits', 'habit', 'notices', 'search', 'trash', 'map', 'songs']);
 let staged = null;            // { build, path } 받아 두고 아직 안 바꾼 묶음
 let route = '';               // 마지막으로 다 그린 화면 (app.js doRoute 가 알려 줌)
 let armed = false, hiddenAt = 0, bgRunning = false, applyFailed = 0;

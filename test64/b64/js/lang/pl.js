@@ -1882,4 +1882,11 @@ export const DICT = {
   '이번 주 기록을 정리했어요': 'Twój tydzień w skrócie',
   '이번 주 {n}편': 'Wpisy w tym tygodniu: {n}',
   '리포트 보기': 'Zobacz raport',
+  /* 내가 고른 음악 (2026-11-08) */
+  '내가 고른 음악': 'Moja muzyka',
+  '아직 일기에 넣은 노래가 없어요': 'W dzienniku nie ma jeszcze piosenek',
+  '일기를 쓸 때 음표 버튼으로 오늘의 노래를 넣어 보세요.': 'Podczas pisania dodaj piosenkę dnia przyciskiem z nutą.',
+  '일기에 넣은 노래를 일기 날짜 순서로 모았어요.': 'Piosenki z Twoich wpisów, według daty w dzienniku.',
+  '{n}곡': 'Piosenki: {n}',
+  '일기에 넣은 노래 {n}곡 · 일기 날짜 순': 'Piosenki z dziennika: {n} · według daty',
 };

@@ -25,6 +25,16 @@ function mapCard() {
   return b;
 }
 
+/* 내가 고른 음악 (2026-11-08 사용자: 일기에 넣은 노래를 일기 날짜 순서로 보는 메뉴) — '내가 일기 쓴 곳' 바로 아래, 같은 모양. 노래가 있을 때만 */
+function songsCard() {
+  const n = store.live().filter((e) => !e.demo && !e.deletedAt && e.song && (e.song.t || e.song.url)).length;
+  if (!n) return null;
+  const b = el('button', { class: 'ins-map span-all', type: 'button' });
+  b.innerHTML = `<span class="ic">${icon('music')}</span><span class="tx"><b>${esc(t('내가 고른 음악'))}</b><span>${esc(t('일기에 넣은 노래 {n}곡 · 일기 날짜 순', { n }))}</span></span><span aria-hidden="true">›</span>`;
+  b.addEventListener('click', () => go('/songs'));
+  return b;
+}
+
 export async function render(root, params = {}) {
   /* 예시(둘러보기) 데이터를 통계에 넣을지 (1.6.6)
      예전엔 직접 쓴 글이 한 편이라도 있으면 예시를 뺐다 → 글이 1~4편인 사람이 둘러보기를 눌러도
@@ -50,6 +60,7 @@ export async function render(root, params = {}) {
        ${t('기분의 리듬, 요일의 패턴, 자주 쓰는 말을 찾아드릴게요.')}<br>
        ${t('보통 5편쯤부터 재미있어져요.')}</div>`));
     root.append(mapCard());
+  { const sc = songsCard(); if (sc) root.append(sc); }
     if (demoExcluded > 0) {
       root.append(el('div', { class: 'note span-all', style: 'text-align:center;margin-top:14px' },
         t('예시 데이터 {n}편은 통계에서 뺐어요. 설정 → 둘러보기에서 지울 수 있어요.', { n: demoExcluded })));
@@ -66,6 +77,7 @@ export async function render(root, params = {}) {
     t('쌓인 글에서 눈에 띄는 것 하나를 골라 문장으로 보여줘요. 글이 늘어나면 내용도 바뀝니다. 평균의 차이일 뿐 원인이라는 뜻은 아니에요.')));
   root.append(hero);
   root.append(mapCard());
+  { const sc = songsCard(); if (sc) root.append(sc); }
 
   // 예시 데이터가 섞여 있으면 그 사실을 분명히 알린다 — 통계가 왜곡됐다고 오해하지 않게
   const dn = demoNote();

@@ -2630,3 +2630,21 @@ html.pv-open #tabbar, html.pv-open.has-ad::after{ visibility:hidden; }
 .streak-pop-ico{ width:34px; height:34px; border-radius:12px; display:grid; place-items:center; background:color-mix(in srgb, var(--accent) 14%, transparent); flex:none; }
 .streak-pop-ico svg{ width:20px; height:20px; fill:none; stroke:var(--accent); stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
 .streak-pop-t{ font-weight:800; font-size:.95rem; } .streak-pop-s{ font-size:.8rem; color:var(--muted); margin-top:2px; }
+
+/* 내가 고른 음악 (2026-11-08) — 발견의 입구 카드는 편지 카드와 같은 결 */
+.songs-entry{ display:flex; align-items:center; gap:14px; width:100%; text-align:start; padding:16px; border:1px solid var(--line); margin-top:16px; }
+.songs-entry-ico{ width:48px; height:48px; border-radius:14px; display:grid; place-items:center; background:color-mix(in srgb, var(--accent) 14%, transparent); flex:none; }
+.songs-entry-ico svg{ width:24px; height:24px; fill:none; stroke:var(--accent); stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.songs-entry-txt{ flex:1; min-width:0; } .songs-entry-t{ font-weight:800; font-size:1rem; } .songs-entry-s{ font-size:.82rem; color:var(--muted); margin-top:3px; }
+.songs-entry-r svg{ width:18px; height:18px; fill:none; stroke:var(--muted-2); stroke-width:2; }
+.songs-month{ margin:18px 4px 8px; font-size:.95rem; }
+.songs-box{ padding:4px 12px; }
+.songs-row{ display:flex; align-items:center; gap:8px; padding:10px 0; border-bottom:1px solid var(--line); }
+.songs-row:last-child{ border-bottom:0; }
+.songs-item{ flex:1; min-width:0; display:flex; align-items:center; gap:12px; text-align:start; border:0; background:none; color:inherit; padding:0; }
+.songs-item .ss-art{ display:grid; place-items:center; }
+.songs-item .ss-art svg{ width:22px; height:22px; fill:none; stroke:var(--muted); stroke-width:1.8; }
+.songs-tx{ flex:1; min-width:0; }
+.songs-date{ font-size:.76rem; color:var(--muted-2); margin-top:2px; }
+.songs-play{ flex:none; display:flex; align-items:center; gap:4px; border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:999px; padding:6px 12px; font-size:.82rem; font-weight:700; }
+.songs-play svg{ width:14px; height:14px; fill:currentColor; stroke:none; }

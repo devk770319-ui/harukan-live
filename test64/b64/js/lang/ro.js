@@ -1835,4 +1835,13 @@ export const DICT = {
   '이번 주 {n}편': '{n} însemnări săptămâna asta',
   '리포트 보기': 'Vezi raportul',
   '이번 주 {n}편|1': '{n} însemnare săptămâna asta',
+  /* 내가 고른 음악 (2026-11-08) */
+  '내가 고른 음악': 'Muzica mea',
+  '아직 일기에 넣은 노래가 없어요': 'Încă nu ai melodii în jurnal',
+  '일기를 쓸 때 음표 버튼으로 오늘의 노래를 넣어 보세요.': 'Când scrii, adaugă melodia zilei cu butonul cu nota muzicală.',
+  '일기에 넣은 노래를 일기 날짜 순서로 모았어요.': 'Melodiile din însemnările tale, în ordinea datelor din jurnal.',
+  '{n}곡': '{n} melodii',
+  '일기에 넣은 노래 {n}곡 · 일기 날짜 순': '{n} melodii din jurnal · după dată',
+  '{n}곡|1': '{n} melodie',
+  '일기에 넣은 노래 {n}곡 · 일기 날짜 순|1': '{n} melodie din jurnal · după dată',
 };

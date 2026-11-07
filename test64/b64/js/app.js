@@ -43,7 +43,8 @@ import * as permsetup from './permsetup.js';
 import * as NB from './newbadge.js';
 import * as ALARM from './alarmscreen.js';
 import * as tabicons from './tabicons.js';
-import * as LetterView from './views/letter.js';   // 친구에게 편지 보내기 (2026-11-03)
+import * as LetterView from './views/letter.js';
+import * as SongsView from './views/songs.js';   // 내가 고른 음악 (2026-11-08)   // 친구에게 편지 보내기 (2026-11-03)
 
 const ROUTES = {
   home: HomeView, write: WriteView, calendar: CalendarView, search: SearchView,
@@ -52,6 +53,7 @@ const ROUTES = {
   feedback: FeedbackView, map: MapView, backup: BackupView,   // 백업·복원 (2026-11-05)
   habits: HabitsView, habit: HabitsView.Detail, 'habit-edit': HabitsView.Edit,   // 습관 (2026-10-30)
   letter: LetterView, letters: LetterView.Box,   // 편지 (2026-11-03)
+  songs: SongsView,   // 내가 고른 음악 (2026-11-08)
 };
 
 let current = null;              // { name, view, params }
