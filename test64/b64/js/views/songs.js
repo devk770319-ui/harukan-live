@@ -20,12 +20,40 @@ export function songEntries() {
     .sort((a, b) => (a.date === b.date ? (b.createdAt || 0) - (a.createdAt || 0) : a.date < b.date ? 1 : -1));
 }
 
-export async function render(root) {
-  const list = songEntries();
-  const head = { title: t('내가 고른 음악'), left: { icon: 'back', onClick: back } };
-  analytics.design('songs:open', list.length);
+/* 노래 한 줄 */
+function songRow(e) {
+  const s = e.song;
+  const row = el('div', { class: 'songs-row' });
+  const b = el('button', { class: 'songs-item', type: 'button' });
+  const art = el('div', { class: 'ss-art' });
+  if (s.art) art.append(el('img', { src: s.art, alt: '', loading: 'lazy' }));
+  else art.innerHTML = icon('music');
+  const tx = el('div', { class: 'songs-tx' });
+  tx.append(
+    el('div', { class: 'ss-t' }, esc(s.t || s.url || '')),
+    el('div', { class: 'ss-a' }, esc(s.a || '')),
+    el('div', { class: 'songs-date' }, esc(fmtDate(e.date, { weekday: true }))),
+  );
+  b.append(art, tx);
+  b.addEventListener('click', () => { analytics.design('songs:entry'); go(`/entry/${e.id}`); });
+  const play = el('button', { class: 'songs-play', type: 'button', 'aria-label': t('듣기') }, `${icon('play')}<span>${esc(t('듣기'))}</span>`);
+  play.addEventListener('click', async () => {
+    analytics.design('songs:listen');
+    const SC = await import('../songcard.js');
+    SC.openListen(s);
+  });
+  row.append(b, play);
+  return row;
+}
 
-  if (!list.length) {
+/* 2026-11-08 사용자: '목록도 연도별·월별로 — 일기가 많아지면 한 번에 보여 주는 게 버겁다'
+   → 위에 연도 고르기(한 해씩), 아래는 달마다 접힌 묶음(맨 위 달만 펼침). 줄은 펼칠 때 그린다 */
+export async function render(root, params = {}) {
+  const all = songEntries();
+  const head = { title: t('내가 고른 음악'), left: { icon: 'back', onClick: back } };
+  analytics.design('songs:open', all.length);
+
+  if (!all.length) {
     root.append(el('div', { class: 'empty', style: 'margin-top:50px' },
       `<span class="empty-emoji">🎵</span>
        <div class="empty-title">${esc(t('아직 일기에 넣은 노래가 없어요'))}</div>
@@ -33,41 +61,43 @@ export async function render(root) {
     return head;
   }
 
-  root.append(el('div', { class: 'note', style: 'margin:6px 4px 14px' },
-    esc(t('일기에 넣은 노래를 일기 날짜 순서로 모았어요.')) + ' · ' + esc(t('{n}곡', { n: list.length }))));
+  const years = [...new Set(all.map((e) => e.date.slice(0, 4)))];          // 최근 해가 먼저 (all 이 날짜 최근 순)
+  const y = years.includes(String(params.y)) ? String(params.y) : years[0];
+  const list = all.filter((e) => e.date.startsWith(y));
 
-  let month = '';
-  let box = null;
-  for (const e of list) {
-    const ym = e.date.slice(0, 7);
-    if (ym !== month) {
-      month = ym;
-      root.append(el('div', { class: 'section-title songs-month' }, `<span>${esc(monthTitle(+ym.slice(0, 4), +ym.slice(5, 7)))}</span>`));
-      box = el('div', { class: 'card songs-box' });
-      root.append(box);
+  root.append(el('div', { class: 'note', style: 'margin:6px 4px 12px' },
+    esc(t('일기에 넣은 노래를 일기 날짜 순서로 모았어요.')) + ' · ' + esc(t('{n}곡', { n: all.length }))));
+
+  if (years.length > 1) {
+    const yr = el('div', { class: 'songs-years', role: 'tablist' });
+    for (const yy of years) {
+      const n = all.filter((e) => e.date.startsWith(yy)).length;
+      const c = el('button', { class: 'songs-year' + (yy === y ? ' on' : ''), type: 'button', role: 'tab', 'aria-selected': String(yy === y) },
+        `<b>${esc(yy)}</b><span>${esc(t('{n}곡', { n }))}</span>`);
+      c.addEventListener('click', () => { if (yy !== y) { analytics.design('songs:year'); go(`/songs?y=${yy}`, { replace: true }); } });
+      yr.append(c);
     }
-    const s = e.song;
-    const row = el('div', { class: 'songs-row' });
-    const b = el('button', { class: 'songs-item', type: 'button' });
-    const art = el('div', { class: 'ss-art' });
-    if (s.art) art.append(el('img', { src: s.art, alt: '', loading: 'lazy' }));
-    else art.innerHTML = icon('music');
-    const tx = el('div', { class: 'songs-tx' });
-    tx.append(
-      el('div', { class: 'ss-t' }, esc(s.t || s.url || '')),
-      el('div', { class: 'ss-a' }, esc(s.a || '')),
-      el('div', { class: 'songs-date' }, esc(fmtDate(e.date, { weekday: true }))),
-    );
-    b.append(art, tx);
-    b.addEventListener('click', () => { analytics.design('songs:entry'); go(`/entry/${e.id}`); });
-    const play = el('button', { class: 'songs-play', type: 'button', 'aria-label': t('듣기') }, `${icon('play')}<span>${esc(t('듣기'))}</span>`);
-    play.addEventListener('click', async () => {
-      analytics.design('songs:listen');
-      const SC = await import('../songcard.js');
-      SC.openListen(s);
-    });
-    row.append(b, play);
-    box.append(row);
+    root.append(yr);
   }
+
+  const months = [...new Set(list.map((e) => e.date.slice(0, 7)))];
+  months.forEach((ym, i) => {
+    const items = list.filter((e) => e.date.startsWith(ym));
+    const sec = el('div', { class: 'songs-sec' });
+    const hb = el('button', { class: 'songs-mhead', type: 'button', 'aria-expanded': 'false' },
+      `<span class="songs-mt">${esc(monthTitle(+ym.slice(0, 4), +ym.slice(5, 7)))}</span><span class="songs-mn">${esc(t('{n}곡', { n: items.length }))}</span><span class="songs-chev">${icon('chevD')}</span>`);
+    const box = el('div', { class: 'card songs-box', hidden: true });
+    let drawn = false;
+    const toggle = (open) => {
+      if (open && !drawn) { for (const e of items) box.append(songRow(e)); drawn = true; }
+      box.hidden = !open;
+      hb.setAttribute('aria-expanded', String(open));
+      sec.classList.toggle('open', open);
+    };
+    hb.addEventListener('click', () => toggle(box.hidden));
+    sec.append(hb, box);
+    root.append(sec);
+    if (i === 0) toggle(true);                                    // 가장 최근 달만 펼쳐 둔다
+  });
   return head;
 }
