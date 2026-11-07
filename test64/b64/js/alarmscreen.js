@@ -30,8 +30,7 @@ function startWatch() {
     if (open && keyOf(open.item) === keyOf(r.item)) return;
     if (open && !r.ringing) return;                // 지금 화면이 있고 새로 울리는 건 아니면 그대로
     if (open) { const o = open; open = null; o.root.remove(); document.documentElement.classList.remove('alarm-open'); }
-    if (lockUp()) return;
-    show(r.item, r.ringing);
+    show(r.item, r.ringing);   // 잠금 화면 위에도 (2026-11-07)
   }, 2000);
 }
 
@@ -60,20 +59,30 @@ export async function applyPending() {
 
 function lockUp() { const ls = document.getElementById('lockscreen'); return !!(ls && !ls.hidden); }
 
+/** 알람이 울리는 중이거나 막 울려 아직 안 끈 것이 있나 — 이때는 업데이트·지문 창이 알람을 가리지 않게 미룬다 (app.js, liveupdate.js) */
+export async function ringingNow() {
+  if (open) return true;
+  if (!native.alarmAvailable()) return false;
+  const r = await native.alarmRinging().catch(() => null);
+  return !!r?.item;
+}
+
 /** 울리는 알람이 있으면 화면을 띄운다 (앱 시작·앱으로 돌아올 때) */
 export async function check() {
   if (!native.alarmAvailable() || checking) return;
   startWatch();
   checking = true;
   try {
-    await applyPending();
+    /* 잠금 중엔 습관 기록을 못 연다 — 쌓인 체크·'습관 화면으로'는 잠금을 푼 뒤(finishBoot 의 check)에 */
+    const locked = lockUp();
+    if (!locked) await applyPending();
     const r = await native.alarmRinging();
     /* 알람이 끝난 뒤 알림을 눌러 열었으면 습관 화면으로 (2026-11-01 사용자: 습관 알람을 눌렀는데 일기로 갔다) */
-    if (await native.alarmTakeOpen()) { try { (await import('./app.js')).go('/habits'); } catch { /* */ } }   // 알람 화면을 닫으면 습관 화면이 보이게
+    if (!locked && await native.alarmTakeOpen()) { try { (await import('./app.js')).go('/habits'); } catch { /* */ } }   // 알람 화면을 닫으면 습관 화면이 보이게
     if (!r?.item || open) return;
-    /* 앱 잠금이 풀릴 때까지 기다린다 (최대 3분) */
-    for (let i = 0; i < 360 && lockUp(); i++) await new Promise((res) => setTimeout(res, 500));
-    if (lockUp()) return;
+    /* 2026-11-07 사용자 신고('알람을 끄려고 앱을 열었는데 업데이트 중이라 소리가 계속 난다'):
+       예전엔 앱 잠금이 풀릴 때까지 기다렸다 → 비밀번호·지문·업데이트를 다 지나야 끌 수 있었다.
+       이제 잠금 화면 위에 바로 띄운다. 보이는 것은 알림에 이미 나온 습관 이름뿐이고, 일기는 열리지 않는다 */
     show(r.item, r.ringing);
   } finally { checking = false; }
 }
@@ -89,6 +98,7 @@ function close(how) {
   setTimeout(() => root.remove(), 220);
   document.documentElement.classList.remove('alarm-open');
   analytics.design('habit:alarm:' + how);
+  try { document.dispatchEvent(new CustomEvent('hk:alarm-closed')); } catch { /* */ }   // 미뤄 둔 업데이트·지문 창 (app.js)
   return item;
 }
 
@@ -123,6 +133,13 @@ export function show(item, ringing = true) {
     if (act === 'done') {
       close('done');
       await native.alarmStop(true);
+      if (lockUp()) {
+        /* 잠금 화면 위: 체크는 잠금을 푼 뒤에 넣는다 (잠금 중엔 습관 기록을 열 수 없다) */
+        toast(t('알람을 껐어요.'));
+        for (let i = 0; i < 1200 && lockUp(); i++) await new Promise((res) => setTimeout(res, 500));
+        if (!lockUp() && (await applyPending())) toast(t('오늘 체크했어요.'));
+        return;
+      }
       const n = await applyPending();
       toast(n ? t('오늘 체크했어요.') : t('알람을 껐어요.'));
       try { const app = await import('./app.js'); if (location.hash.startsWith('#/habits') || location.hash === '' || location.hash === '#/home') app.go(location.hash.slice(1) || '/home', { replace: true }); } catch { /* */ }

@@ -310,6 +310,7 @@ function showLock(sub) {
   pinReset();
   tickWait();
   setupBiometric();
+  setTimeout(() => ALARM.check().catch(() => {}), 300);   // 울리는 습관 알람은 잠금 화면 위에 바로 (2026-11-07)
 }
 
 /* ── 지문으로 열기 ─────────────────────────────── */
@@ -398,6 +399,8 @@ async function autoBiometric() {
     /* 내려받기 화면이 떠 있으면 끝날 때까지 — 새 묶음으로 바꾸면 앱이 다시 열리고 거기서 한 번만 묻는다 */
     if (document.querySelector('.live-ov')) { await liveSettled; await new Promise((r) => setTimeout(r, 400)); }
     if ($('#lockscreen').hidden || updateWallUp() || document.querySelector('.live-ov') || document.hidden) return;
+    /* 습관 알람 화면이 떠 있거나 울리는 중이면 지문 창이 알람을 가리지 않게 — 알람을 닫으면 그때 묻는다 (2026-11-07) */
+    if (document.documentElement.classList.contains('alarm-open') || await ALARM.ringingNow().catch(() => false)) return;
     window.__hkBioAsked = true;
     if (window.__hkLiveRunning) analytics.design('bio:auto:liveRunning');   // 받는 중에 물었다 (원인 추적용)
     attemptBiometric(true);
@@ -890,6 +893,8 @@ async function enforceUpdate({ force = false } = {}) {
   if (!force && !updateWallUp() && Date.now() - updCheckedAt < UPD_RECHECK_MS) return;
 
   updChecking = (async () => {
+    /* 습관 알람이 울리는 중이면 업데이트 안내·구글 업데이트 창을 미룬다 — 알람부터 끄게 (2026-11-07 사용자 신고). 알람 화면을 닫으면 다시 본다 */
+    if (!updateWallUp() && await ALARM.ringingNow().catch(() => false)) { updCheckedAt = 0; analytics.design('update:deferred_alarm'); return; }
     updCheckedAt = Date.now();
     const wasUp = updateWallUp();
     const info = await native.requiredUpdate();
@@ -913,6 +918,12 @@ async function enforceUpdate({ force = false } = {}) {
   })().catch((e) => console.error(e)).finally(() => { updChecking = null; ads.onUpdateKnown(); });
   return updChecking;
 }
+
+/* 습관 알람을 닫으면 미뤄 둔 업데이트 확인·지문 창 (2026-11-07) */
+document.addEventListener('hk:alarm-closed', () => setTimeout(() => {
+  enforceUpdate({ force: true }).catch(() => {});
+  if (!$('#lockscreen').hidden && !document.hidden) autoBiometric().catch(() => {});
+}, 800));
 
 function wireUpdateWall() {
   $('#updGo').addEventListener('click', () => runUpdateFlow());
@@ -1068,7 +1079,7 @@ export async function notifCountStats() {
   return out;
 }
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && booted) dailyStats();
+  if (document.visibilityState === 'visible' && booted) { dailyStats(); import('./milestones.js').then((m) => m.reportTenDaily()).catch(() => {}); }
 });
 
 /* ── 부팅 ───────────────────────────────────────── */
@@ -1219,7 +1230,7 @@ async function finishBoot() {
   caret.watchKeyboard();   // 키보드가 뜨면 아래 탭바를 숨긴다 (1.7.2)
   analytics.init().then(dailyStats)
     // 이미 쓰던 사람: 지금 편수까지의 '몇 번째 일기' 단계를 한 번에 보낸다 (milestones.js, 단계마다 1회)
-    .then(() => import('./milestones.js')).then((m) => m.report()).catch(() => {});
+    .then(() => import('./milestones.js')).then((m) => { m.report(); m.reportDays(); m.reportTenDaily(); }).catch(() => {});   // 쓴 날 수 (2026-11-07)
 
   /* 일정 알림을 지금 상태에 맞게 다시 건다.
      앱을 열 때마다 맞춘다 — 예약은 기기가 꺼지거나 앱이 갱신되면 날아간다. */

@@ -50,6 +50,19 @@ async function fetchJson(url, timeout = 6000) {
   return { text: r.text, json: JSON.parse(r.text) };
 }
 
+/* 습관 알람(중요 알람)이 울리는 중이거나 막 울려 알람 화면을 띄울 참이면 바꾸지 않는다 (2026-11-07 사용자 질문:
+   '습관 알람이 오면 업데이트 후 앱이 실행되는 거야?'). 알람 알림을 눌러 켜면 알림 누름 표시(__hkTapAt)가 없어서
+   켜지자마자 받아 둔 묶음으로 바뀌며 화면이 한 번 다시 열렸다 → 알람 화면이 늦게 떴다 */
+async function alarmNow() {
+  try {
+    if (document.documentElement.classList.contains('alarm-open')) return true;
+    const A = window.Capacitor?.Plugins?.HabitAlarm;
+    if (!A?.ringing) return false;
+    const r = await Promise.race([A.ringing(), new Promise((res) => setTimeout(() => res(null), 1500))]);
+    return !!(r && (r.ringing || r.item));
+  } catch { return false; }
+}
+
 /** 쓰는 중이면 화면을 덮지 않는다 */
 function busy() {
   if (location.hash.startsWith('#/write')) return true;
@@ -139,7 +152,9 @@ export async function start(opts = {}) {
     } catch { /* */ }
 
     /* 2. 받아 둔 새 묶음 → 지금 바꾼다 */
-    const tapped = window.__hkTapAt && Date.now() - window.__hkTapAt < 15000;   // 알림을 눌러 막 들어왔으면 이번엔 안 바꾼다
+    const tapped = (window.__hkTapAt && Date.now() - window.__hkTapAt < 15000)   // 알림을 눌러 막 들어왔으면 이번엔 안 바꾼다
+      || (info.staged > info.current && info.stagedPath && await alarmNow());     // 습관 알람이 울리는 중이어도
+    if (info.staged > info.current && info.stagedPath && tapped) analytics.design('live:apply_skipped:' + (window.__hkTapAt ? 'tap' : 'alarm'));
     if (info.staged > info.current && info.stagedPath && !busy() && !tapped) {
       /* 조용히 (2026-11-06 사용자: '받아 놨다가 다음에 켤 때 적용') — 안내 화면 없이 켜지는 순간 바로 바꾼다 */
       analytics.design('live:applyStaged');
@@ -260,6 +275,8 @@ async function tryApply(why, opt = {}) {
   }
   /* 알림을 눌러 막 들어왔으면 바꾸지 않는다 — 바꾸면 웹뷰가 다시 열려 알림이 연 화면(일기 쓰기)과 기록이 사라진다 (2026-11-06) */
   if (window.__hkTapAt && Date.now() - window.__hkTapAt < 15000) { if (!skipLogged.has('tap')) { skipLogged.add('tap'); analytics.design('live:apply_skipped:tap'); } return false; }
+  if (await alarmNow()) { if (!skipLogged.has('alarm')) { skipLogged.add('alarm'); analytics.design('live:apply_skipped:alarm'); } return false; }
+  if (!staged || applying) return false;
   const s = staged;
   applying = true;
   try {

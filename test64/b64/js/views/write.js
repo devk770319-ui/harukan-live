@@ -116,7 +116,7 @@ async function commit() {
     analytics.design(stat.wasNew ? 'entry:new' : 'entry:edit', nReal);
     if (stat.wasNew) {
       analytics.once('funnel:first_entry');
-      import('../milestones.js').then((m) => m.report(nReal)).catch(() => {});
+      import('../milestones.js').then((m) => { m.report(nReal); m.reportDays(); }).catch(() => {});
       /* 첫 일기를 쓴 직후 한 번: 쉬어 간 날 알림 권한 부탁 (1.7.6). 그 뒤로는 저장할 때마다 다음 알림 날짜만 맞춘다 */
       if (nReal === 1) import('../nudge.js').then((m) => m.offerPermissionOnce()).catch(() => {});
     }
