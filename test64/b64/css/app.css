@@ -2621,6 +2621,7 @@ html.pv-open #tabbar, html.pv-open.has-ad::after{ visibility:hidden; }
 .weekly-card-ico svg{ width:24px; height:24px; fill:none; stroke:var(--accent); stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
 .weekly-card-txt{ flex:1; min-width:0; } .weekly-card-t{ font-weight:800; font-size:1rem; } .weekly-card-s{ font-size:.82rem; color:var(--muted); margin-top:3px; }
 .weekly-card-r svg{ width:18px; height:18px; fill:none; stroke:var(--muted-2); stroke-width:2; }
+.weekly-focus{ scroll-margin-top:96px; }   /* 위 머리줄(고정)에 제목이 가리지 않게 */
 .weekly-focus .card{ box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); transition:box-shadow 1.2s; }
 .streak-pop{ position:fixed; left:50%; top:calc(env(safe-area-inset-top, 0px) + 6px); transform:translate(-50%,-12px); opacity:0; z-index:300;
   display:flex; align-items:center; gap:12px; width:max-content; max-width:min(92vw, 380px); padding:9px 16px 9px 10px; border-radius:16px;
