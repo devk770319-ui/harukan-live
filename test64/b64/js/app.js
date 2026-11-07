@@ -1539,7 +1539,9 @@ let trialWas = null;
 function checkTrialEdge() {
   if (!booted) return;
   const now = plus.inTrial();
-  if (trialWas === null || now === trialWas) { trialWas = now; return; }
+  /* 첫 확인 때도 광고에 지금 상태를 알린다 (2026-11-08 테스트폰: 켠 직후 1분 안에 체험이 끝난 것으로 바뀌면 배너가 다시 켤 때까지 안 나왔다) */
+  if (trialWas === null) { trialWas = now; ads.setTrial(now); return; }
+  if (now === trialWas) return;
   trialWas = now;
   analytics.design('trial:edge:' + (now ? 'on' : 'off'));
   ads.setTrial(now);
