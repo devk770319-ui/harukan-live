@@ -2275,6 +2275,28 @@ html[data-theme="dark"] .cal-cell.has{ color:#fff; text-shadow:0 1px 1px rgba(0,
 html[data-theme="dark"] .plan-bars i{ box-shadow:none; filter:saturate(.9) brightness(.92); }
 html[data-theme="dark"] .plan-grid .plan-cell.has{ color:var(--ink); }
 
+/* 일정 달력 = 흰 칸 + 일정 색 태그 (2026-11-12 사용자: '일정 달력에 흰색 배경을 넣고 기존 태그 색상이 들어가게').
+   모든 날짜 칸을 흰 바탕으로, 일정은 그 일정 색 바탕에 이름을 쓴 작은 태그로. 칸 높이는 태그 수만큼 늘어난다 */
+.plan-grid{ gap:4px; }
+.plan-grid .plan-cell, .plan-grid .plan-cell.has, .plan-grid .plan-cell.plan-late, .plan-grid .plan-cell.all-done{
+  aspect-ratio:auto; min-height:66px; padding:6px 2px 5px; justify-content:flex-start; align-items:stretch; gap:3px;
+  background:#fff; border:1px solid rgba(60,40,20,.08); box-shadow:0 1px 2px rgba(60,40,20,.05); border-radius:10px; color:var(--ink); }
+.plan-grid .plan-cell.blank{ background:transparent; border:0; box-shadow:none; }
+.plan-grid .plan-cell .plan-cell-d{ text-align:center; font-size:.86rem; font-weight:750; line-height:1.1; }
+.plan-grid .plan-cell.today{ border-color:var(--accent); box-shadow:0 0 0 1.5px var(--accent); }
+.plan-tags{ display:flex; flex-direction:column; gap:2px; width:100%; min-width:0; }
+.plan-tag{ display:block; font-style:normal; font-size:.6rem; font-weight:700; line-height:1.35; letter-spacing:-.02em;
+  padding:1px 3px; border-radius:4px; background:var(--bar, #efcf8f); color:#3a2c24;
+  white-space:nowrap; overflow:hidden; text-overflow:clip; text-align:left; }
+.plan-tag.done{ opacity:.45; text-decoration:line-through; }
+.plan-tags em{ font-style:normal; font-size:.56rem; font-weight:700; line-height:1; color:var(--muted); text-align:center; }
+.plan-grid .plan-cell.plan-late .plan-cell-d{ color:var(--bad); }
+html[data-theme="dark"] .plan-grid .plan-cell, html[data-theme="dark"] .plan-grid .plan-cell.has,
+html[data-theme="dark"] .plan-grid .plan-cell.plan-late, html[data-theme="dark"] .plan-grid .plan-cell.all-done{
+  background:var(--card); border-color:rgba(255,255,255,.08); box-shadow:none; }
+html[data-theme="dark"] .plan-grid .plan-cell.blank{ background:transparent; }
+html[data-theme="dark"] .plan-tag{ filter:saturate(.9) brightness(.95); }
+
 /* ── 달력: 일기와 일정을 나누어 (2026-11-01 사용자) ─────────────
    · 메인 달력 칸의 일정은 점이 아니라 그 일정 색의 얇은 막대 (일정 달력과 같은 색)
    · 달력 아래 범례: ● 일기 n  ▬ 일정 n

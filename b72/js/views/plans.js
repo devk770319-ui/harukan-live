@@ -313,11 +313,13 @@ async function renderMonth(root, params) {
       c.classList.add('has');
       /* 일정 하나마다 크림색 가로 막대 (2026-11-01 사용자: 칸 전체가 까맣게 칠해져 보기 싫다 — 일정마다 크림색 줄로).
          안 끝난 것 먼저, 끝낸 것은 옅게. 3개 넘으면 막대 3개 + 개수 */
-      const bars = el('span', { class: 'plan-bars' });
+      /* 막대 대신 일정 이름 태그 (2026-11-12 사용자: '일정 달력에 흰색 배경, 기존 태그 색상이 들어가게' — 리뷰 '일정 달력에 태그를'):
+         일정마다 그 일정 색(planColor) 바탕에 이름. 안 끝난 것 먼저, 끝낸 것은 옛게. 3개 넘으면 태그 3개 + 개수 */
+      const tags = el('span', { class: 'plan-tags' });
       const ordered = [...open, ...list.filter((p) => p.done)];
-      for (const p of ordered.slice(0, 3)) bars.append(el('i', { class: p.done ? 'done' : '', style: `--bar:${barColor(p)}` }));
-      if (list.length > 3) bars.append(el('em', {}, '+' + (list.length - 3)));
-      c.append(bars);
+      for (const p of ordered.slice(0, 3)) tags.append(el('i', { class: 'plan-tag' + (p.done ? ' done' : ''), style: `--bar:${barColor(p)}` }, esc(p.title || t('일정'))));
+      if (list.length > 3) tags.append(el('em', {}, '+' + (list.length - 3)));
+      c.append(tags);
       if (open.length) { if (key < today) c.classList.add('plan-late'); }
       else c.classList.add('all-done');
       c.setAttribute('aria-label', `${d}, ${t('{n}개', { n: list.length })}`);

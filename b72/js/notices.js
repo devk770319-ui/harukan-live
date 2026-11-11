@@ -12,6 +12,42 @@ import * as store from './store.js';
 import * as i18n from './i18n.js';
 
 export const NOTICES = [
+  /* 1.8.7 앱 업데이트 (vc59, 2026-11-11 사용자 '1번 ㄱ' 광고분석 세션 전달: 새 아이콘 뒤 광고 클릭률 30~60% 하락 → 앱·스토어 아이콘을 원래 보라색으로) — 59 이상 앱에만 */
+  {
+    id: 'v59-iconthanks', date: '2026-11-12', minNative: 59, image: 'img/notice/icon-back.png',
+    title: {
+      ko: "하루칸 아이콘이 원래대로 돌아왔어요",
+      en: "The Harukan icon is back to the original",
+      ja: "ハルカンのアイコンが元に戻りました",
+      zh: "Harukan 图标恢复为原来的样子",
+      es: "El icono de Harukan vuelve a ser el original",
+      pt: "O ícone do Harukan voltou ao original",
+      th: "ไอคอน Harukan กลับมาเป็นแบบเดิมแล้ว",
+      ar: "عادت أيقونة Harukan إلى شكلها الأصلي",
+      tr: "Harukan simgesi eski haline döndü",
+      de: "Das Harukan-Symbol ist wieder das alte",
+      fr: "L’icône de Harukan redevient l’originale",
+      nl: "Het Harukan-pictogram is weer het oude",
+      pl: "Ikona Harukan wróciła do pierwotnej",
+      ro: "Pictograma Harukan a revenit la cea originală",
+    },
+    items: {
+      ko: ["여러분의 성원과 많은 의견에 힘입어, 홈 화면 아이콘을 다시 이전의 보라색 '하루칸' 아이콘으로 바꿨어요. 늘 고맙습니다. 일기와 설정은 그대로예요.","설정 › '걸음 수 가져오기'를 켜면 오늘 걸음 수를 홈과 그날 일기에 기록해요 (헬스 커넥트 · 폰 걸음 센서)."],
+      en: ["Thanks to your support and the many comments you sent us, we’ve changed the home screen icon back to the original purple “Harukan” icon. Thank you, always. Your diary and settings stay the same.","Turn on Settings › “Import step count” to record today’s steps on Home and with that day’s entry (Health Connect · phone step sensor)."],
+      ja: ["皆さまの応援とたくさんのご意見をいただき、ホーム画面のアイコンを以前の紫色の「하루칸」アイコンに戻しました。いつもありがとうございます。日記と設定はそのままです。","設定 ›「歩数を取り込む」をオンにすると、今日の歩数をホームとその日の日記に記録します（ヘルスコネクト・歩数センサー）。"],
+      zh: ["感谢大家的支持和许多宝贵意见，我们把主屏幕图标换回了原来的紫色「하루칸」图标。一直以来谢谢你们。日记和设置都不变。","打开 设置 ›「导入步数」，今天的步数会记录在主页和当天的日记中（Health Connect · 手机计步传感器）。"],
+      es: ["Gracias a vuestro apoyo y a los muchos comentarios que nos habéis enviado, hemos vuelto a poner el icono morado original “하루칸”. Gracias, siempre. Tu diario y tus ajustes siguen igual.","Activa Ajustes › «Importar pasos» para registrar los pasos de hoy en Inicio y en la entrada del día (Health Connect · sensor del móvil)."],
+      pt: ["Graças ao apoio de vocês e aos muitos comentários que recebemos, voltamos o ícone da tela inicial para o original roxo “하루칸”. Obrigado, sempre. Seu diário e suas configurações continuam iguais.","Ative Ajustes › “Importar passos” para registrar os passos de hoje no Início e no registro do dia (Health Connect · sensor do celular)."],
+      th: ["ขอบคุณสำหรับกำลังใจและความคิดเห็นมากมายจากทุกคน เราได้เปลี่ยนไอคอนบนหน้าจอหลักกลับเป็นไอคอนสีม่วง “하루칸” แบบเดิมแล้ว ขอบคุณเสมอ บันทึกและการตั้งค่ายังอยู่ครบ","เปิด ตั้งค่า › “นำเข้าจำนวนก้าว” เพื่อบันทึกจำนวนก้าววันนี้ที่หน้าหลักและในบันทึกของวันนั้น (Health Connect · เซ็นเซอร์นับก้าว)"],
+      ar: ["بفضل دعمكم وتعليقاتكم الكثيرة، أعدنا أيقونة الشاشة الرئيسية إلى الأيقونة البنفسجية الأصلية «하루칸». شكرًا لكم دائمًا. مذكراتك وإعداداتك كما هي.","فعّل الإعدادات › «استيراد عدد الخطوات» لتسجيل خطوات اليوم في الرئيسية ومع تدوينة ذلك اليوم (Health Connect · مستشعر الهاتف)."],
+      tr: ["Desteğiniz ve bize gönderdiğiniz pek çok yorum sayesinde ana ekran simgesini yeniden eski mor “하루칸” simgesine çevirdik. Her zaman teşekkürler. Günlüğün ve ayarların aynen duruyor.","Ayarlar › “Adım sayısını al”ı açınca bugünkü adımların ana sayfaya ve o günün günlüğüne kaydedilir (Health Connect · telefon adım sensörü)."],
+      de: ["Dank eurer Unterstützung und vieler Rückmeldungen haben wir das Symbol auf dem Startbildschirm wieder auf das ursprüngliche lila „하루칸“-Symbol zurückgesetzt. Danke, wie immer. Tagebuch und Einstellungen bleiben unverändert.","Schalte Einstellungen › „Schritte übernehmen“ ein, um die heutigen Schritte auf der Startseite und im Tageseintrag festzuhalten (Health Connect · Schrittsensor)."],
+      fr: ["Grâce à votre soutien et à vos nombreux avis, nous avons remis l’icône violette d’origine « 하루칸 » sur l’écran d’accueil. Merci, toujours. Ton journal et tes réglages restent les mêmes.","Active Réglages › « Importer les pas » pour noter tes pas du jour sur l’accueil et dans la page du jour (Health Connect · capteur du téléphone)."],
+      nl: ["Dankzij jullie steun en de vele reacties hebben we het pictogram op het startscherm teruggezet naar het oorspronkelijke paarse ‘하루칸’-pictogram. Altijd bedankt. Je dagboek en instellingen blijven hetzelfde.","Zet Instellingen › ‘Stappen ophalen’ aan om je stappen van vandaag op Home en bij het stuk van die dag vast te leggen (Health Connect · stappensensor)."],
+      pl: ["Dzięki Waszemu wsparciu i wielu opiniom przywróciliśmy na ekranie głównym pierwotną, fioletową ikonę „하루칸”. Dziękujemy, zawsze. Twój dziennik i ustawienia pozostają bez zmian.","Włącz Ustawienia › „Pobieraj liczbę kroków”, by zapisywać dzisiejsze kroki na ekranie głównym i we wpisie dnia (Health Connect · czujnik kroków)."],
+      ro: ["Mulțumită susținerii voastre și numeroaselor păreri, am readus pe ecranul principal pictograma mov originală „하루칸”. Vă mulțumim, mereu. Jurnalul și setările rămân la fel.","Activează Setări › „Preia numărul de pași” ca să înregistrezi pașii de azi pe ecranul principal și în jurnalul zilei (Health Connect · senzorul de pași)."],
+    },
+  },
   /* 1.8.6 앱 업데이트 (vc58, 2026-11-10 사용자: '걸음 수 추가된거와 관련하여 공지사항에 넣어줘', 중요도 5) — 걸음 부품이 든 앱에만(minNative 58) */
   {
     id: 'v58-steps', date: '2026-11-10', minNative: 58,
