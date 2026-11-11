@@ -19,6 +19,40 @@ import * as analytics from '../analytics.js';
 import { weekProgress, goalStreakWeeks, recentMoodAvg } from '../insights.js';
 import { pickPrompts } from '../prompts.js';
 
+/* 새 버전 묻는 창 (2026-11-10 사용자: "업그레이드 여부를 묻게 해서, 그 창에 '업그레이드하면 이제부터 걸음수가 기록이 돼요',
+   업그레이드할지 취소할지 묻는")
+   · Play 중요도 1~3 새 버전이 있을 때, 같은 버전(versionCode)에 한 번만. 취소해도 홈 위 작은 띠는 남는다
+   · 걸음 수가 든 앱(58~)으로 올라갈 때만 걸음 문구, 그 밖엔 일반 문구
+   · 잠금 화면·다른 창(공지 등)·습관 알람이 떠 있으면 비켜 줄 때까지(최대 30초) 기다린다 */
+const STEPS_FROM_VC = 58;
+let askBusy = false;
+async function askUpdateOnce(N, u) {
+  const key = 'hk.updAsk:' + u.vc;
+  try { if (localStorage.getItem(key) || askBusy) return; } catch { return; }
+  askBusy = true;
+  try {
+    const t0 = Date.now();
+    const busy = () => !!document.querySelector('#sheetRoot .sheet') || document.getElementById('lockscreen')?.hidden === false
+      || document.documentElement.classList.contains('alarm-open') || !location.hash.match(/^(#\/home)?$/) && location.hash !== '';
+    while (busy() && Date.now() - t0 < 30000) await new Promise((r) => setTimeout(r, 1000));
+    if (busy()) return;
+    let cur = 0; try { cur = +(await window.Capacitor?.Plugins?.App?.getInfo?.())?.build || 0; } catch { /* */ }
+    const steps = u.vc >= STEPS_FROM_VC && cur > 0 && cur < STEPS_FROM_VC;
+    try { localStorage.setItem(key, String(Date.now())); } catch { /* */ }
+    analytics.design('update:ask:shown' + (steps ? ':steps' : ''));
+    const { confirmSheet, toast } = await import('../ui.js');
+    const go = await confirmSheet({
+      title: t('새 버전이 나왔어요'),
+      text: steps ? t('업데이트하면 이제부터 걸음 수가 기록돼요.') : t('업데이트하면 새 기능과 고친 점을 바로 쓸 수 있어요.'),
+      ok: t('업데이트'),
+    });
+    analytics.design('update:ask:' + (go ? 'ok' : 'cancel'));
+    if (!go) return;
+    const r = await N.runUpdate();
+    if (r === 'fail' && !(await N.openStore())) toast(t('업데이트를 시작하지 못했어요. 잠시 뒤 다시 눌러 주세요.'));
+  } finally { askBusy = false; }
+}
+
 /* 도움말(⋮) 메뉴 — 시안 승인·다국어 번역 뒤 true 로 (2026-11-08, 1.8.5 출시에서는 숨김) */
 const HELP_MENU = false;
 
@@ -59,6 +93,7 @@ export async function render(root) {
     import('../native.js').then(async (N) => {
       const u = await N.optionalUpdate();
       if (!u || !uslot.isConnected) return;
+      askUpdateOnce(N, u);   // 새 버전마다 한 번 '업데이트할까요?' 창 (2026-11-10)
       let hide = null; try { hide = JSON.parse(localStorage.getItem('hk.updBarHide') || 'null'); } catch { /* */ }
       if (hide && hide.vc === u.vc && Date.now() < hide.until) return;
       const bar = el('div', { class: 'card upd-bar', style: 'display:flex;align-items:center;gap:10px;padding:12px 12px 12px 16px;margin:0 0 12px' });

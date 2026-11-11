@@ -1940,4 +1940,6 @@ export const DICT = {
   '삼성 헬스 열기': 'Abrir Samsung Health',
   "걸음 수를 가져오기 전에": "Antes de importar tus pasos",
   "하루칸은 헬스 커넥트에서 걸음 수만 읽어 홈 화면과 그날 일기에 기록해요. 다른 건강 정보는 읽지 않고, 헬스 커넥트에 아무것도 쓰지 않아요. 헬스 앱이 없으면 폰의 걸음 센서로 셉니다. 걸음 수는 이 폰에만 저장되고 어디에도 보내지 않아요. 설정에서 언제든 끌 수 있어요.": "Harukan solo lee tus pasos desde Health Connect para registrarlos en Inicio y en la entrada del día. No lee otros datos de salud ni escribe nada en Health Connect. Si no tienes una app de salud, usa el sensor de pasos del móvil. Los pasos se guardan solo en este teléfono y nunca se envían. Puedes desactivarlo en Ajustes cuando quieras.",
+  "업데이트하면 이제부터 걸음 수가 기록돼요.": "Actualiza y a partir de ahora se registrarán tus pasos.",
+  "업데이트하면 새 기능과 고친 점을 바로 쓸 수 있어요.": "Actualiza para tener ya las novedades y correcciones.",
 };
