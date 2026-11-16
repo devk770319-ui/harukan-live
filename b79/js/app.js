@@ -1057,11 +1057,18 @@ document.addEventListener('visibilitychange', () => {
 function dailyStats() {
   analytics.daily(async () => {
     const out = [];
-    if (plus.isPlus()) out.push(['tier:plus']);
-    else if (plus.inTrial()) {
+    /* 등급 기록에 내 일기 편수(예시·휴지통 제외)를 값으로 붙인다 (2026-11-16 사용자 "체험 끝난 사람들 일기 편수도 알 수 있게 넣어줘").
+       · tier:* 의 value = 누적 편수 → 등급별 평균 편수 (aggregation mean)
+       · tier:<등급>:n:<구간> 한 번 더 → 구간별 사람 수 (무료판은 값 분포를 못 보여서). 내용은 보내지 않는다 */
+    let nReal = 0;
+    try { nReal = store.all().filter((x) => !x.demo && !x.deletedAt).length; } catch { /* 못 세면 0 */ }
+    const band = nReal === 0 ? '0' : nReal < 3 ? '1_2' : nReal < 10 ? '3_9' : nReal < 30 ? '10_29' : '30p';
+    const tierName = plus.isPlus() ? 'plus' : plus.inTrial() ? 'trial' : 'free';
+    out.push(['tier:' + tierName, nReal], ['tier:' + tierName + ':n:' + band, nReal]);
+    if (tierName === 'trial') {
       const start = store.getSettings().trialStartedAt || Date.now();
-      out.push(['tier:trial'], ['trial:day', Math.floor((Date.now() - start) / 86400000) + 1]);
-    } else out.push(['tier:free']);
+      out.push(['trial:day', Math.floor((Date.now() - start) / 86400000) + 1]);
+    }
     /* 언어 (하루 한 번, 2026-11-06 광고분석 요청: 독일 유입이 튀르키예계인지 확인) — 앱에 보이는 언어와 기기 언어 앞 2글자 */
     try {
       out.push(['lang:app:' + i18n.current()]);
