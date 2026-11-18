@@ -2079,4 +2079,6 @@ export const DICT = {
   "1년 {p}로 계속 쓰기": "Yıllık {p} ile devam et",
   "1년 이용권으로 계속 쓰기": "Yıllıkla devam et",
   "하루칸 플러스 1년 이용권 사용 중": "Harukan Plus yıllık abonelik aktif",
+  "{n}개 더 보기": "{n} tane daha göster",
+  "접기": "Daha az göster",
 };

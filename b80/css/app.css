@@ -2750,24 +2750,27 @@ html.pv-open #tabbar, html.pv-open.has-ad::after{ visibility:hidden; }
    · 아래 탭을 왼쪽 세로 막대로 옮겨 위아래 공간을 넓힌다 (태블릿 가로는 높이가 커서 해당 없음)
    · 제목 줄을 낮추고, 달력 칸을 납작하게, 창(시트)은 가운데 좁게
    · 하루칸이(떠다니는 캐릭터)는 화면이 낮아 글을 가리므로 잠시 숨긴다 */
-@media (orientation:landscape) and (max-height:520px){
-  :root{ --topbar-h:46px; --rail-w:78px; --safe-l:env(safe-area-inset-left, 0px); --safe-r:env(safe-area-inset-right, 0px); }
-  body{ padding-left:calc(var(--rail-w) + var(--safe-l)); padding-right:var(--safe-r); }
-  .tabbar{ top:0; left:0; right:auto; bottom:var(--ad-h); width:calc(var(--rail-w) + var(--safe-l)); height:auto;
-    padding:calc(var(--safe-t) + 4px) 0 calc(var(--safe-b) + 4px) var(--safe-l);
-    grid-template-columns:1fr; grid-template-rows:repeat(6,minmax(0,1fr)); justify-content:stretch;
-    border-top:0; border-right:1px solid var(--line); }
-  html.has-ad .tabbar{ height:auto; padding-bottom:4px; }
-  .tab{ gap:2px; }
-  .tab-ico{ width:21px; height:21px; }
-  .tab-label{ font-size:.58rem; }
-  .tab-write-plus{ width:44px; height:32px; font-size:1.3rem; border-radius:12px; }
-  .view, html.has-ad .view{ padding-bottom:calc(var(--safe-b) + 22px + var(--ad-h)); }
-  .toasts, html.has-ad .toasts{ bottom:calc(var(--safe-b) + 14px + var(--ad-h)); left:calc(var(--rail-w) + var(--safe-l)); }
-  .sheet{ left:calc(var(--rail-w) + var(--safe-l)); right:0; margin:0 auto; max-width:600px; max-height:92vh; }
-  .cal-cell{ aspect-ratio:1.9 / 1; }
-  .kan-float{ display:none !important; }
-}
+/* 2026-11-18 고침: 예전엔 (orientation:landscape) 미디어 쿼리였는데, 키보드가 올라와 웹뷰가 납작해지면(가로가 세로보다 길어지면) 폰을 세운 채로도
+   가로 배치(왼쪽 막대 자리 78px·탭 막대)가 켜져 글 칸이 좁아지고 화면이 흔들렸다 (Play 리뷰 1.8.9 '키보드를 열면 아래에 큰 빈 공간').
+   이제 app.js 가 폰이 실제로 가로일 때만 html.phone-land 를 붙인다 */
+
+html.phone-land{ --topbar-h:46px; --rail-w:78px; --safe-l:env(safe-area-inset-left, 0px); --safe-r:env(safe-area-inset-right, 0px); }
+html.phone-land body{ padding-left:calc(var(--rail-w) + var(--safe-l)); padding-right:var(--safe-r); }
+html.phone-land .tabbar{ top:0; left:0; right:auto; bottom:var(--ad-h); width:calc(var(--rail-w) + var(--safe-l)); height:auto;
+  padding:calc(var(--safe-t) + 4px) 0 calc(var(--safe-b) + 4px) var(--safe-l);
+  grid-template-columns:1fr; grid-template-rows:repeat(6,minmax(0,1fr)); justify-content:stretch;
+  border-top:0; border-right:1px solid var(--line); }
+html.phone-land.has-ad .tabbar{ height:auto; padding-bottom:4px; }
+html.phone-land .tab{ gap:2px; }
+html.phone-land .tab-ico{ width:21px; height:21px; }
+html.phone-land .tab-label{ font-size:.58rem; }
+html.phone-land .tab-write-plus{ width:44px; height:32px; font-size:1.3rem; border-radius:12px; }
+html.phone-land .view, html.phone-land.has-ad .view{ padding-bottom:calc(var(--safe-b) + 22px + var(--ad-h)); }
+html.phone-land .toasts, html.phone-land.has-ad .toasts{ bottom:calc(var(--safe-b) + 14px + var(--ad-h)); left:calc(var(--rail-w) + var(--safe-l)); }
+html.phone-land .sheet{ left:calc(var(--rail-w) + var(--safe-l)); right:0; margin:0 auto; max-width:600px; max-height:92vh; }
+html.phone-land .cal-cell{ aspect-ratio:1.9 / 1; }
+html.phone-land .kan-float{ display:none !important; }
+
 /* ── 언젠가 할 일 (날짜 없음, 2026-11-15) ── */
 .plan-someday{ margin-top:6px; }
 .sd-head{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
@@ -2806,4 +2809,22 @@ html.pv-open #tabbar, html.pv-open.has-ad::after{ visibility:hidden; }
 
 /* 공지 항목 그림 (1.8.9): 기능이 화면 어디에 있는지 */
 .notice-shot{ display:block; width:100%; max-width:260px; height:auto; margin:10px auto 6px; border-radius:14px; border:1px solid var(--line); box-shadow:0 2px 10px rgba(0,0,0,.08); }
+
+
+
+/* 언젠가 할 일을 일정 아래로 (2026-11-16 사용자 '너무 상단, 간격이 좁다'): 위와 넉넉히 띄우고, 제목 줄을 눌러 접기, 3개까지 + 더 보기 */
+.plan-someday{ margin-top:28px; padding-top:18px; border-top:1px dashed var(--line); }
+.plan-someday .sd-head{ width:100%; display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:none; border:0; padding:2px 4px 10px; font:inherit; color:inherit; text-align:start; cursor:pointer; }
+.sd-head .sd-t{ display:inline-flex; align-items:center; gap:6px; }
+.sd-head .sd-n{ font-style:normal; font-size:.72rem; font-weight:800; min-width:20px; padding:1px 7px; border-radius:99px; text-align:center; background:color-mix(in srgb, var(--area, var(--accent)) 14%, transparent); color:var(--area-2, var(--accent)); }
+.sd-head .sd-chev{ margin-inline-start:auto; display:grid; place-items:center; color:var(--muted); transform:rotate(90deg); transition:transform .2s; }
+.sd-head .sd-chev svg{ width:16px; height:16px; }
+.plan-someday.folded .sd-chev{ transform:rotate(0deg); }
+[dir=rtl] .plan-someday.folded .sd-chev{ transform:scaleX(-1); }
+.plan-someday.folded .sd-head{ padding-bottom:2px; }
+.plan-someday .plan-card{ padding:6px 0; }
+.sd-more{ display:block; width:100%; padding:10px 12px; border:0; border-top:1px solid var(--line); background:none; font:inherit; font-size:.86rem; font-weight:700; color:var(--area-2, var(--accent)); cursor:pointer; }
+.plan-someday + .add-btn, .plan-someday + .btn{ margin-top:18px; }
+.sd-head .sd-t{ font-weight:800; color:var(--ink); font-size:.95rem; }
+.plan-someday{ padding-top:14px; }
 

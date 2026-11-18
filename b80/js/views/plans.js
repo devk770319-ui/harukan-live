@@ -40,6 +40,7 @@ const PER_PAGE = 20;
    기본은 '앞으로' — 일정 화면을 여는 대부분의 이유가 앞일을 보려는 것이다. */
 let tab = 'soon';        // soon | late | done
 let page = 0;
+let sdMore = false;      // 언젠가 할 일을 다 펼쳐 보는 중 (화면을 나가면 다시 3개만)
 
 export async function render(root, params = {}) {
   await plans.loadAll();
@@ -56,16 +57,16 @@ export async function render(root, params = {}) {
   const soon = plans.upcoming();
   const done = plans.doneList();
 
-  /* 언젠가 할 일 (날짜 없음, 2026-11-15) — 목록 맨 위. 적어 두었다가 하면 체크 */
-  root.append(somedayCard());
-
+  /* 언젠가 할 일 (날짜 없음, 2026-11-15) — 2026-11-16 사용자 '너무 상단에 있어서 많이 추가하면 다른 일정이 안 보인다, 간격이 좁다':
+     날짜 있는 일정 아래로 내리고, 제목을 눌러 접기(기억), 펼쳐도 3개까지만 보이고 [n개 더 보기] */
   if (!late.length && !soon.length && !done.length) {
-    if (plans.someday().length) { root.append(addButton()); return chrome(); }   // 언젠가 할 일만 있으면 빈 화면 안내는 빼고
+    if (plans.someday().length) { root.append(somedayCard(), addButton()); return chrome(); }   // 언젠가 할 일만 있으면 빈 화면 안내는 빼고
     root.append(el('div', { class: 'empty', style: 'margin-top:46px' },
       `<span class="empty-emoji">🗓️</span>
        <div class="empty-title">${t('아직 일정이 없어요')}</div>
        <div class="empty-sub">${t('앞으로 할 일을 여기에 적어두세요.')}<br>
        ${t('일기와는 따로 관리돼요.')}</div>`));
+    root.append(somedayCard());
     root.append(addButton());
     return chrome();
   }
@@ -109,15 +110,28 @@ export async function render(root, params = {}) {
   const pgr = pager(pages, list.length);
   if (pgr) root.append(pgr);
 
+  root.append(somedayCard());
   root.append(addButton());
   return chrome();
 
   /* ── 조각들 ─────────────────────────────────── */
   function somedayCard() {
-    const wrap = el('div', { class: 'plan-someday' });
-    wrap.append(el('div', { class: 'plan-day sd-head' }, `<span>${esc(t('언젠가 할 일'))}</span><span class="sd-sub">${esc(t('날짜 없이 적어 두고, 하면 체크해요'))}</span>`));
+    const all = plans.someday();
+    const folded = localStorage.getItem('sdFold') === '1';
+    const wrap = el('div', { class: 'plan-someday' + (folded ? ' folded' : '') });
+    const head = el('button', { class: 'plan-day sd-head', type: 'button', 'aria-expanded': String(!folded) },
+      `<span class="sd-t">${esc(t('언젠가 할 일'))}${all.length ? `<em class="sd-n">${all.length}</em>` : ''}</span><span class="sd-sub">${esc(t('날짜 없이 적어 두고, 하면 체크해요'))}</span><span class="sd-chev">${icon('chev')}</span>`);
+    head.addEventListener('click', () => { sdMore = false; localStorage.setItem('sdFold', folded ? '0' : '1'); analytics.design('plan:someday_fold:' + (folded ? 'open' : 'close')); haptic(); refresh(); });
+    wrap.append(head);
+    if (folded) return wrap;
     const c = el('div', { class: 'card plan-card' });
-    for (const p of plans.someday()) c.append(row(p));
+    const showAll = sdMore;
+    for (const p of (showAll ? all : all.slice(0, 3))) c.append(row(p));
+    if (all.length > 3) {
+      const more = el('button', { class: 'sd-more', type: 'button' }, esc(showAll ? t('접기') : t('{n}개 더 보기', { n: all.length - 3 })));
+      more.addEventListener('click', () => { sdMore = !showAll; refresh(); });
+      c.append(more);
+    }
     /* 바로 적기 — 시트를 열지 않고 한 줄로 */
     const add = el('form', { class: 'sd-add' });
     const inp = el('input', { type: 'text', class: 'sd-input', placeholder: t('언젠가 할 일 적기'), autocomplete: 'off', enterkeyhint: 'done', 'aria-label': t('언젠가 할 일 적기') });
