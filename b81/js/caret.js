@@ -138,3 +138,22 @@ export function watchKeyboard() {
   document.addEventListener('focusout', () => setTimeout(update, 160));
   window.addEventListener('orientationchange', () => { full = 0; setTimeout(update, 400); });
 }
+
+/* ── 폰을 실제로 가로로 눕혔을 때만 html.phone-land (2026-11-18) ──────────────
+   예전엔 CSS (orientation:landscape) 로 판단했는데, 키보드가 올라와 웹뷰가 납작해지면 폰을 세운 채로도 '가로'로 잡혀
+   왼쪽 막대 자리·탭 막대 배치가 켜지고 글 칸이 좁아졌다 (1.8.9 Play 리뷰 '키보드를 열면 큰 빈 공간, 글이 안 써진다').
+   화면(screen)의 방향은 키보드와 상관없다. 폰(짧은 변 600 미만)만 — 태블릿 가로는 원래 배치 그대로 */
+export function watchPhoneLand() {
+  const upd = () => {
+    const so = screen.orientation && screen.orientation.type;
+    const sw = screen.width || 0, sh = screen.height || 0;
+    /* 화면 방향이 가로이고, 창도 가로로 넓을 때 (방향 값이 엉뚱한 기기·데스크톱 대비 — 세운 폰은 키보드가 떠도 방향이 portrait) */
+    const land = (so ? String(so).startsWith('landscape') : sw > sh) && window.innerWidth > window.innerHeight;
+    const phone = Math.min(sw, sh) > 0 && Math.min(sw, sh) < 600;
+    document.documentElement.classList.toggle('phone-land', !!(land && phone));
+  };
+  upd();
+  try { screen.orientation?.addEventListener?.('change', upd); } catch { /* 옛 웹뷰 */ }
+  window.addEventListener('orientationchange', () => setTimeout(upd, 50));
+  window.addEventListener('resize', upd);
+}

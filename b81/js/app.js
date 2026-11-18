@@ -1266,6 +1266,7 @@ async function finishBoot() {
   /* 새 기능 안내 그림 알림 (1.8.1): 열린 횟수를 세고, 아직 안 건 캐페인을 건다. 기다리지 않는다 */
   if (native.isNative()) campaign.countOpen().then(() => campaign.schedulePending()).catch(() => {});
   caret.watchKeyboard();   // 키보드가 뜨면 아래 탭바를 숨긴다 (1.7.2)
+  caret.watchPhoneLand();  // 폰을 실제로 눕혔을 때만 가로 배치 (2026-11-18, 키보드로 납작해진 화면은 가로가 아니다)
   analytics.init().then(dailyStats)
     // 이미 쓰던 사람: 지금 편수까지의 '몇 번째 일기' 단계를 한 번에 보낸다 (milestones.js, 단계마다 1회)
     .then(() => import('./milestones.js')).then((m) => { m.report(); m.reportDays(); m.reportTenDaily(); }).catch(() => {});   // 쓴 날 수 (2026-11-07)

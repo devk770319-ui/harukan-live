@@ -24,7 +24,8 @@ function savePos(p) { ls.set(K_POS, JSON.stringify(p)); }
 let glOk = null;
 function hasGL() {
   if (glOk !== null) return glOk;
-  try { const c = document.createElement('canvas'); glOk = !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { glOk = false; }
+  /* 3D(three r170)는 WebGL2 만 쓴다 — WebGL1 만 되는 폰에서는 만들기가 실패한다 (2026-11-18 확인) */
+  try { const c = document.createElement('canvas'); glOk = !!c.getContext('webgl2'); } catch { glOk = false; }
   return glOk;
 }
 export function enabled() { return store.getSettings().kanOn !== false && hasGL(); }
@@ -74,13 +75,22 @@ export function hideNow() { S?.hideNow(); }
 async function create(greet, mood0) {
   const box = document.createElement('div');
   box.className = 'kan-float';
-  box.style.cssText = `position:fixed;left:0;top:0;width:${W}px;height:${H}px;z-index:140;-webkit-tap-highlight-color:transparent;will-change:transform;touch-action:none`;
+  /* 처음엔 숨겨 둔다 — 만들기가 끝나고 자리를 잡은 뒤에 보인다.
+     (2026-11-18 발견: 3D 만들기가 실패하면 빈 상자가 왼쪽 위(0,0)에 남아 모든 화면에서 뒤로 버튼·글 칸 앞부분 터치를 가로채고 있었다) */
+  box.style.cssText = `position:fixed;left:0;top:0;width:${W}px;height:${H}px;z-index:140;-webkit-tap-highlight-color:transparent;will-change:transform;touch-action:none;display:none`;
   const cv = document.createElement('canvas');
   cv.style.cssText = 'width:100%;height:100%;display:block;touch-action:none';
   cv.setAttribute('aria-label', 'Harukan');
   box.append(cv); document.body.append(box);
-  const { createKan } = await import('./kan/kan.js');
-  const k = createKan(cv, { mood: mood0, w: W, h: H, fps: 30 });
+  let k;
+  try {
+    const { createKan } = await import('./kan/kan.js');
+    k = createKan(cv, { mood: mood0, w: W, h: H, fps: 30 });
+  } catch (e) {
+    box.remove(); glOk = false;                                  // 이 폰에서는 다시 시도하지 않는다
+    import('./analytics.js').then((A) => A.design('kan:fail')).catch(() => {});
+    throw e;
+  }
   const snd = import('./kan/sound.js').catch(() => null);
   const an = import('./analytics.js').catch(() => null);
   an.then((A) => A?.design('kan:show:' + mood0));
@@ -93,6 +103,7 @@ async function create(greet, mood0) {
   const clampXY = () => { st.x = Math.max(-8, Math.min(innerWidth - W + 8, st.x)); st.y = Math.max(40, Math.min(floorY(), st.y)); if (st.mode === 'walk') st.y = floorY(); };
   const place = () => { clampXY(); box.style.transform = `translate(${Math.round(st.x)}px,${Math.round(st.y)}px)`; };
   place();
+  box.style.display = '';                                         // 자리를 잡은 뒤에 보인다
 
   /* 끌기 · 누르기 */
   let tapLog = 0;

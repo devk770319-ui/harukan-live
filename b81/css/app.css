@@ -2750,24 +2750,27 @@ html.pv-open #tabbar, html.pv-open.has-ad::after{ visibility:hidden; }
    · 아래 탭을 왼쪽 세로 막대로 옮겨 위아래 공간을 넓힌다 (태블릿 가로는 높이가 커서 해당 없음)
    · 제목 줄을 낮추고, 달력 칸을 납작하게, 창(시트)은 가운데 좁게
    · 하루칸이(떠다니는 캐릭터)는 화면이 낮아 글을 가리므로 잠시 숨긴다 */
-@media (orientation:landscape) and (max-height:520px){
-  :root{ --topbar-h:46px; --rail-w:78px; --safe-l:env(safe-area-inset-left, 0px); --safe-r:env(safe-area-inset-right, 0px); }
-  body{ padding-left:calc(var(--rail-w) + var(--safe-l)); padding-right:var(--safe-r); }
-  .tabbar{ top:0; left:0; right:auto; bottom:var(--ad-h); width:calc(var(--rail-w) + var(--safe-l)); height:auto;
-    padding:calc(var(--safe-t) + 4px) 0 calc(var(--safe-b) + 4px) var(--safe-l);
-    grid-template-columns:1fr; grid-template-rows:repeat(6,minmax(0,1fr)); justify-content:stretch;
-    border-top:0; border-right:1px solid var(--line); }
-  html.has-ad .tabbar{ height:auto; padding-bottom:4px; }
-  .tab{ gap:2px; }
-  .tab-ico{ width:21px; height:21px; }
-  .tab-label{ font-size:.58rem; }
-  .tab-write-plus{ width:44px; height:32px; font-size:1.3rem; border-radius:12px; }
-  .view, html.has-ad .view{ padding-bottom:calc(var(--safe-b) + 22px + var(--ad-h)); }
-  .toasts, html.has-ad .toasts{ bottom:calc(var(--safe-b) + 14px + var(--ad-h)); left:calc(var(--rail-w) + var(--safe-l)); }
-  .sheet{ left:calc(var(--rail-w) + var(--safe-l)); right:0; margin:0 auto; max-width:600px; max-height:92vh; }
-  .cal-cell{ aspect-ratio:1.9 / 1; }
-  .kan-float{ display:none !important; }
-}
+/* 2026-11-18 고침: 예전엔 (orientation:landscape) 미디어 쿼리였는데, 키보드가 올라와 웹뷰가 납작해지면(가로가 세로보다 길어지면) 폰을 세운 채로도
+   가로 배치(왼쪽 막대 자리 78px·탭 막대)가 켜져 글 칸이 좁아지고 화면이 흔들렸다 (Play 리뷰 1.8.9 '키보드를 열면 아래에 큰 빈 공간').
+   이제 app.js 가 폰이 실제로 가로일 때만 html.phone-land 를 붙인다 */
+
+html.phone-land{ --topbar-h:46px; --rail-w:78px; --safe-l:env(safe-area-inset-left, 0px); --safe-r:env(safe-area-inset-right, 0px); }
+html.phone-land body{ padding-left:calc(var(--rail-w) + var(--safe-l)); padding-right:var(--safe-r); }
+html.phone-land .tabbar{ top:0; left:0; right:auto; bottom:var(--ad-h); width:calc(var(--rail-w) + var(--safe-l)); height:auto;
+  padding:calc(var(--safe-t) + 4px) 0 calc(var(--safe-b) + 4px) var(--safe-l);
+  grid-template-columns:1fr; grid-template-rows:repeat(6,minmax(0,1fr)); justify-content:stretch;
+  border-top:0; border-right:1px solid var(--line); }
+html.phone-land.has-ad .tabbar{ height:auto; padding-bottom:4px; }
+html.phone-land .tab{ gap:2px; }
+html.phone-land .tab-ico{ width:21px; height:21px; }
+html.phone-land .tab-label{ font-size:.58rem; }
+html.phone-land .tab-write-plus{ width:44px; height:32px; font-size:1.3rem; border-radius:12px; }
+html.phone-land .view, html.phone-land.has-ad .view{ padding-bottom:calc(var(--safe-b) + 22px + var(--ad-h)); }
+html.phone-land .toasts, html.phone-land.has-ad .toasts{ bottom:calc(var(--safe-b) + 14px + var(--ad-h)); left:calc(var(--rail-w) + var(--safe-l)); }
+html.phone-land .sheet{ left:calc(var(--rail-w) + var(--safe-l)); right:0; margin:0 auto; max-width:600px; max-height:92vh; }
+html.phone-land .cal-cell{ aspect-ratio:1.9 / 1; }
+html.phone-land .kan-float{ display:none !important; }
+
 /* ── 언젠가 할 일 (날짜 없음, 2026-11-15) ── */
 .plan-someday{ margin-top:6px; }
 .sd-head{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
