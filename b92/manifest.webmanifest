@@ -1,0 +1,24 @@
+{
+  "name": "하루칸 — 하루 한 칸",
+  "short_name": "하루칸",
+  "description": "쓰기만 하고 끝나지 않는 일기장. 하루 한 칸씩 쌓고, 그 칸들이 나에 대해 말해줍니다. 계정도 서버도 없이 기기 안에만 저장됩니다.",
+  "lang": "ko",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f3ec",
+  "theme_color": "#c2703d",
+  "categories": ["lifestyle", "productivity", "health"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "오늘 쓰기", "short_name": "쓰기", "url": "./index.html#/write", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "찾기", "short_name": "찾기", "url": "./index.html#/search" },
+    { "name": "발견", "short_name": "발견", "url": "./index.html#/insights" }
+  ]
+}
