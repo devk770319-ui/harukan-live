@@ -1,0 +1,236 @@
+/* ===========================================================
+   views/plusview.js — 하루칸 플러스 (1.5.0)
+   설정 맨 위의 '하루칸 플러스' 한 줄에서 들어온다.
+
+   예전에는 설정 화면 안에 구매·복원·체험 설명이 줄줄이 붙어 있었다.
+   혜택이 늘어나면서(스티커, 배경 꾸미기) 설정이 광고판처럼 길어져서
+   한 화면으로 모았다. 여기서 보여주는 것:
+     ① 지금 상태 (쓰는 중 / 체험 n일 남음 / 가격 한 번만)
+     ② 플러스로 열리는 것 — 바로 써볼 수 있는 것은 눌러서 그 화면으로 간다
+     ③ 원래 무료인 것 — 사는 것과 섞이면 오해를 준다
+     ④ 구매 · 구매 다시 적용
+   =========================================================== */
+
+import * as plus from '../plus.js';
+import * as native from '../native.js';
+import * as analytics from '../analytics.js';
+import { go, back } from '../app.js';
+import { el, icon, esc } from '../ui.js';
+import { t } from '../i18n.js';
+import { bgName } from './decor.js';
+import * as store from '../store.js';
+import * as dualsub from '../dualsub.js';
+import * as billing from '../billing.js';
+
+export async function render(root, params = {}) {
+  analytics.design('plus:view:screen');
+  const from = /^[a-z_]{1,24}$/.test(params.from || '') ? params.from : '';   // 어디서 왔나 (일정 한도 등, 2026-11-01)
+  if (from) analytics.design('plus:view:from:' + from);
+  const isPlus = plus.isPlus();
+  const nativeApp = native.isNative();
+  const trialLeft = nativeApp && !isPlus ? plus.trialDaysLeft() : null;
+  const price = plus.price();
+
+  /* ① 상태 */
+  const hero = el('div', { class: 'plus-hero' });
+  let headline, sub;
+  if (!nativeApp) {
+    headline = t('웹에서는 모두 열려 있어요');
+    sub = t('플러스는 안드로이드 앱에서 살 수 있어요. 웹에는 광고도 결제도 없습니다.');
+  } else if (isPlus) {
+    headline = t('플러스를 쓰고 계세요');
+    sub = t('구매해 주셔서 고맙습니다. 광고 없이, 일정도 개수 제한 없이 쓰실 수 있어요.') + ' ' + t('위로 스티커 120종까지 모두 쓸 수 있어요.');
+  } else if (trialLeft) {
+    headline = t('무료 체험') + ' · ' + t('{n}일 남았어요', { n: trialLeft });
+    sub = t('지금은 하루칸 플러스의 모든 기능을 무료로 쓰고 계세요. 체험이 끝나도 자동으로 결제되지 않아요. 카드도 등록하지 않았습니다.');
+  } else {
+    const mp0 = plus.monthlyPrice();
+    headline = mp0 ? t('한 달 {p}로 가볍게 시작', { p: mp0 }) : t('하루칸 플러스');
+    sub = t('부담 없이 써 보고, 마음에 들면 평생 이용권으로 바꿔도 돼요.');
+    if (plus.yearlyAvailable() && plus.yearlyPerMonth()) { headline = t('1년이면 한 달 {p}꼴', { p: plus.yearlyPerMonth() }); sub = plus.yearlyDiscount() ? t('1년 이용권은 매달 내는 것보다 {n}% 싸요. 언제든 해지할 수 있어요.', { n: plus.yearlyDiscount() }) : t('언제든 해지'); }
+  }
+  if (nativeApp && plus.isMonthly()) { headline = plus.isYearly() ? t('하루칸 플러스 1년 이용권 사용 중') : t('월 이용권 사용 중'); sub = t('광고 없이, 플러스 기능을 모두 쓰고 계세요.'); }
+  hero.innerHTML =
+    `<div class="plus-hero-kicker">${icon('heart')}<span>${esc(t('하루칸 플러스'))}</span></div>
+     <div class="plus-hero-title">${esc(headline)}</div>
+     <div class="plus-hero-sub">${esc(sub)}</div>`;
+  root.append(hero);
+  /* 평생 이용권이 있는데 월 이용권이 아직 자동 갱신 중이면 맨 위에 경고 (2026-11-04) */
+  if (nativeApp) { const dc = await dualsub.card('plus'); if (dc) root.append(dc); }
+  /* 이용권 고르기 (2026-11-03 사용자 결정 B안: 월 이용권을 위에·먼저 골라 둠, 평생 이용권엔 'n달이면 본전' — n 은 실제 가격으로 계산) */
+  if (nativeApp && !isPlus) root.append(planPicker(from, price));
+  if (nativeApp && plus.isMonthly()) root.append(await subStatus(price));
+
+  /* 체험 중이면 끝났을 때 무엇이 달라지는지 미리 말해 둔다 — 모르고 만나면 빼앗긴 것 같다 */
+  if (trialLeft) {
+    const g = el('div', { class: 'note', style: 'margin:12px 6px 0' });
+    g.innerHTML = `<b>${esc(t('무엇이 달라지나요?'))}</b><br>`
+      + esc(t('체험이 끝나면 배너 광고가 생기고 일정은 {n}개까지만 넣을 수 있어요. 지금까지 넣어둔 일정은 그대로 남습니다.', { n: plus.planCeiling() })
+        + ' ' + t('배경 꾸미기·PDF 내보내기·위로 스티커도 체험 동안만 쓸 수 있어요. 붙여둔 스티커는 그대로 남고, 배경은 기본으로 돌아가요.')
+        + ' ' + t('사진 묶음·사진 달력도 체험 동안만 쓸 수 있어요. 이미 만든 사진 묶음은 그대로 보여요.')
+        + ' ' + t('습관 기록·알림도 체험 동안만 쓸 수 있어요. 만들어 둔 습관과 기록은 지워지지 않고, 플러스를 사면 그대로 다시 쓸 수 있어요.')
+        + ' ' + t('글자 상자·백업 불러오기도 체험 동안만 쓸 수 있어요. 붙여 둔 글자 상자는 그대로 남아요.')
+        + ((window.Capacitor?.PluginHeaders || []).some((h) => h.name === 'PhotoPick' && h.methods.some((m) => m.name === 'pickVideo')) ? ' ' + t('무음 카메라·동영상 넣기도 체험 동안만 쓸 수 있어요. 넣어 둔 동영상은 그대로 남아요.') : ''));
+    root.append(g);
+  }
+
+  /* ② 플러스로 열리는 것 */
+  const cur = store.getSettings().bgTheme || 'none';
+  root.append(group(t('플러스로 열리는 것'), [
+    row(t('습관 기록·알림'), t('약 먹기·물 마시기 같은 습관을 기록하고 정한 시간에 알려 드려요.'),
+      { ico: 'check', tone: 'green', onClick: () => go('/habits') }),
+    row(t('배경 꾸미기'), t('미니멀·동화·사계절 배경과 내 사진으로 화면을 꾸며요.'),
+      { ico: 'spark', tone: 'plum', badge: 'NEW',
+        value: plus.canUseBackground() && cur !== 'none' ? bgName(cur) : '',
+        onClick: () => go('/decor') }),
+    row(t('백업 불러오기'), t('다른 기기에서 만든 백업을 불러와 폰·태블릿 여러 곳에서 써요. 백업 파일 만들기는 무료예요.'),
+      { ico: 'down', tone: 'green' }),
+    /* 무음 카메라·동영상 (2026-11-15) — 부품이 든 앱(1.8.9+)에서만 */
+    ...((window.Capacitor?.PluginHeaders || []).some((h) => h.name === 'PhotoPick' && h.methods.some((m) => m.name === 'hasCamera')) ? [row(t('무음 카메라·필터'), t('셔터 소리 없이 찍고, 흑백·바랜 빛 같은 필터 10가지를 쓸 수 있어요.'), { ico: 'camera', tone: 'blue', badge: 'NEW' })] : []),
+    ...((window.Capacitor?.PluginHeaders || []).some((h) => h.name === 'PhotoPick' && h.methods.some((m) => m.name === 'pickVideo')) ? [row(t('동영상 넣기'), t('일기에 동영상을 넣고 원하는 부분만 잘라요.'), { ico: 'play', tone: 'plum', badge: 'NEW' })] : []),
+    row(t('글자 상자'), t('일기 위에 짧은 글을 스티커처럼 붙이고 색·배경·크기를 바꿔요.'),
+      { ico: 'fileTxt', tone: 'orange' }),
+    row(t('PDF로 내보내기'), t('일기를 PDF로 묶어 인쇄하고 간직해요. 디자인 5가지 중에서 골라요.'),
+      { ico: 'book', tone: 'plum', badge: 'NEW', onClick: () => go('/pdf') }),
+    row(t('사진 묶음'), t('여러 장을 한 틀에 모아요'),
+      { ico: 'image', tone: 'orange', badge: 'NEW' }),
+    row(t('사진 달력'), t('달력 칸을 그날 찍은 사진으로 채워요.'),
+      { ico: 'cal', tone: 'blue', badge: 'NEW', onClick: () => go('/calendar') }),
+    row(t('위로 스티커'), t('위로 스티커 120종을 쓸 수 있어요. 기본·계절·동물·테이프 스티커 56종은 무료예요.'),
+      { ico: 'sticker', tone: 'orange', badge: 'NEW' }),
+    row(t('일정 개수 제한 없음'), t('무료로는 끝나지 않은 일정을 {n}개까지 둘 수 있어요.', { n: plus.FREE_PLAN_LIMIT }),
+      { ico: 'list', tone: 'blue', onClick: () => go('/plans') }),
+    row(t('배너 광고 없음'), t('배너 광고가 모든 화면에서 사라져요.'),
+      { ico: 'eye', tone: 'green' }),
+  ]));
+
+  /* 스티커 플러스(따로 파는 상품)는 1.6.6 에서 없앰다 — 스티커는 전부 하루칸 플러스에 들어 있다 */
+
+  /* ③ 원래 무료 */
+  root.append(el('div', { class: 'note', style: 'margin:12px 6px 0' },
+    esc(t('일기 쓰기·사진 넣기(글 사이 자리·크기)·스티커 56종·잠금·백업 파일 만들기는 원래부터 전부 무료예요. 30일 무료 체험 동안은 위의 플러스 기능을 모두 써 볼 수 있어요.'))));
+
+  /* ④ 구매는 위 이용권 고르기에서 */
+  if (nativeApp) {
+    root.append(group('', [
+      row(t('구매 다시 적용'), t('이미 구매했는데 적용되지 않았다면 (기기 변경·재설치) 눌러주세요. 일기 데이터 복원과는 관계없어요.'),
+        { ico: 'refresh', tone: 'orange', onClick: () => plus.restore() }),
+    ]));
+  }
+
+  return { title: t('하루칸 플러스'), left: { icon: 'back', onClick: back } };
+}
+
+/** 이용권 고르기 — B안 (월 위·먼저 골라 둠) */
+function planPicker(from, lp) {
+  const mp = plus.monthlyPrice();
+  const fc = plus.monthlyFirstCharge();
+  const box = el('div', { class: 'mp-pick' });
+  let sel = plus.yearlyAvailable() ? 'yearly' : 'monthly';   // 1년을 먼저 골라 둔다 (2026-11-19 사용자 → 광고분석 전달: 1년권을 가장 눈에 띄게)
+  const card = (k, name, badge, priceTxt, per, desc, extra = '') => {
+    const c = el('button', { class: 'mp-card' + (k === sel ? ' on' : ''), type: 'button', 'data-k': k });
+    c.innerHTML = `<span class="mp-radio"></span><span class="mp-body"><span class="mp-name">${esc(name)}${badge ? ` <em class="mp-badge${k === 'lifetime' ? ' soft' : ''}">${esc(badge)}</em>` : ''}</span>
+      <span class="mp-price">${esc(priceTxt || '')}${per ? `<small>${esc(per)}</small>` : ''}</span><span class="mp-desc">${esc(desc)}</span>${extra}</span>`;
+    c.addEventListener('click', () => { sel = k; box.querySelectorAll('.mp-card').forEach((x) => x.classList.toggle('on', x.dataset.k === sel)); paintBtn(); });
+    return c;
+  };
+  const trialNote = fc.trialDays ? `<span class="mp-trial">${esc(t('체험이 끝나는 {d}부터 결제돼요', { d: plus.fmtDay(fc.at) }))}</span>` : '';
+  /* 1년 이용권 (2026-11-16): 월과 평생 사이. 월 ×12 를 취소선으로 긋고 할인율 배지, 월과 같은 무료 체험 */
+  const yOn = plus.yearlyAvailable(), yp = plus.yearlyPrice(), yWas = plus.yearlyFullPrice(), yd = plus.yearlyDiscount();
+  const yfc = plus.yearlyFirstCharge();
+  const yTrial = yfc.trialDays ? `<span class="mp-trial">${esc(t('체험이 끝나는 {d}부터 결제돼요', { d: plus.fmtDay(yfc.at) }))}</span>` : '';
+  /* 2026-11-26 사용자 '1년 구독을 먼저 보여 주자, 평생 49,000원은 비싸 보인다' — 순서: 1년 → 월 → 평생 */
+  const mc = card('monthly', t('월 이용권'), t('가볍게 시작'), mp, mp ? t('/월') : '', t('매달 자동 결제 · 언제든 해지'), trialNote);
+  if (yOn) {
+    const yc = card('yearly', t('하루칸 플러스 1년 이용권'), yd ? t('{n}% 할인', { n: yd }) : '', yp, yp ? t('/년') : '', t('1년에 한 번 자동 결제 · 언제든 해지'), yTrial);
+    if (yWas && yp) yc.querySelector('.mp-price')?.prepend(el('s', { class: 'mp-was' }, esc(yWas)));
+    yc.querySelector('.mp-badge')?.classList.add('save');
+    yc.classList.add('best'); yc.prepend(el('em', { class: 'mp-rec' }, esc(t('가장 알뜰'))));
+    if (plus.yearlyPerMonth()) yc.querySelector('.mp-price')?.append(el('span', { class: 'mp-pm' }, esc(t('한 달 {p}꼴', { p: plus.yearlyPerMonth() }))));
+    box.append(yc);
+  }
+  box.append(mc);
+  box.append(card('lifetime', t('평생 이용권'), (plus.breakEvenMonths() ? t('{n}달이면 본전', { n: plus.breakEvenMonths() }) : ''), lp, '', t('한 번만 결제 · 매달 나가는 돈 없이 평생 사용')));
+  const btn = el('button', { class: 'btn btn-primary btn-block mp-cta', type: 'button' });
+  const disc = el('div', { class: 'mp-disc' });
+  const paintBtn = () => {
+    const label = sel === 'monthly' ? (mp ? t('월 {p}로 시작하기', { p: mp }) : t('월 이용권으로 시작하기'))
+      : sel === 'yearly' ? (yp ? t('1년 {p}로 시작하기', { p: yp }) : t('1년 이용권으로 시작하기'))
+        : (lp ? t('평생 이용권 {p} 구매', { p: lp }) : t('평생 이용권 구매'));
+    btn.innerHTML = `<span>${esc(label)}</span>`;
+    disc.innerHTML = sel === 'yearly'
+      ? `<b>${esc(t('1년 이용권:'))}</b> ${esc(t('1년마다 같은 날 {p}이 자동 결제돼요. 해지는 Play 스토어 › 결제 및 정기 결제에서 언제든 할 수 있고, 해지해도 결제한 기간 끝까지 쓸 수 있어요.', { p: yp || '' }))}`
+      : `<b>${esc(t('월 이용권:'))}</b> ${esc(t('매달 같은 날 {p}이 자동 결제돼요. 해지는 Play 스토어 › 결제 및 정기 결제에서 언제든 할 수 있고, 해지해도 결제한 기간 끝까지 쓸 수 있어요.', { p: mp || '' }))}`;
+  };
+  paintBtn();
+  btn.addEventListener('click', () => (sel === 'lifetime' ? plus.buyLifetime(from || 'plus_screen') : plus.confirmSub(sel, from || 'plus_screen')));
+  box.append(btn, disc);
+  return box;
+}
+
+/** 월 이용권 사용 중 — 다음 결제일·관리·평생으로 바꾸기 */
+async function subStatus(lp) {
+  const next = await plus.monthlyNextCharge();
+  const yearly = plus.isYearly(), switchAt = plus.yearlySwitchAt();
+  const mp = yearly ? plus.yearlyPrice() : plus.monthlyPrice();
+  const box = el('div', { class: 'mp-status' });
+  /* 월→1년 바꾸기로 했으면 다음 결제는 바뀌는 날의 1년 가격 */
+  /* Play 에서 해지했으면(자동 갱신 꺼짐) '다음 결제' 대신 '해지했어요 · 언제까지' (2026-11-19 사용자 질문 '취소하는 화면은 어떻게' 점검 중 발견:
+     해지하고 돌아와도 계속 '다음 결제 12월 9일 · ₩2,900'이 보여 해지가 안 된 것처럼 보였다) */
+  const lapsing = !switchAt && billing.monthlyRenewState() === 'lapsing';
+  const nextTxt = switchAt ? t('{d}부터 1년 이용권으로 바뀌어요', { d: plus.fmtDay(switchAt) }) + (plus.yearlyPrice() ? ' · ' + plus.yearlyPrice() : '')
+    : lapsing ? (next ? t('해지했어요 · {d}까지 쓸 수 있어요', { d: plus.fmtDay(next) }) : t('해지했어요 · 결제한 기간 끝까지 쓸 수 있어요'))
+    : next ? t('다음 결제 {d}', { d: plus.fmtDay(next) }) + (mp ? ' · ' + mp : '') : '';
+  box.innerHTML = `<div class="mp-st-t">${esc(yearly ? t('하루칸 플러스 1년 이용권 사용 중') : t('월 이용권 사용 중'))}</div>`
+    + (nextTxt ? `<div class="mp-st-s">${esc(nextTxt)}</div>` : '');
+  const manage = el('button', { class: 'btn btn-block', type: 'button' }, esc(t('정기 결제 관리 (Play 스토어)')));
+  manage.addEventListener('click', () => {
+    try { window.__hkOutAt = Date.now(); } catch { /* */ }
+    /* Play 에서 해지하고 돌아오면 보유 내역을 다시 받아 이 상자를 고친다 */
+    const back2 = async () => {
+      if (document.visibilityState !== 'visible') return;
+      document.removeEventListener('visibilitychange', back2);
+      try { await billing.refresh(); } catch { /* */ }
+      if (box.isConnected) { try { box.replaceWith(await subStatus(lp)); } catch { /* */ } }
+    };
+    document.addEventListener('visibilitychange', back2);
+    analytics.design('plus:manage_sub');
+    window.open(plus.MONTHLY_MANAGE_URL, '_blank');
+  });
+  box.append(manage);
+  if (!yearly && !switchAt && plus.yearlyAvailable()) {
+    const yp = plus.yearlyPrice(), yd = plus.yearlyDiscount();
+    const toY = el('button', { class: 'btn btn-block mp-to-year', type: 'button' }, esc((yp ? t('1년 이용권으로 바꾸기 · {p}', { p: yp }) : t('1년 이용권으로 바꾸기'))));
+    toY.addEventListener('click', () => plus.confirmSwitchYearly('sub_status'));
+    box.append(toY);
+  }
+  const up = el('button', { class: 'btn btn-block', type: 'button' }, esc(lp ? t('평생 이용권으로 바꾸기 · {p}', { p: lp }) : t('평생 이용권으로 바꾸기')));
+  up.addEventListener('click', () => plus.buyLifetime('sub_upgrade'));
+  box.append(up);
+  if (!lapsing) box.append(el('div', { class: 'mp-disc' }, esc(next ? t('해지해도 {d}까지 쓸 수 있어요.', { d: plus.fmtDay(switchAt || next) }) : t('해지해도 결제한 기간 끝까지 쓸 수 있어요.'))
+    + ' ' + esc(yearly || switchAt ? t('평생 이용권으로 바꾼 뒤에는 Play 스토어에서 1년 이용권을 꼭 해지해 주세요.') : t('평생 이용권으로 바꾼 뒤에는 Play 스토어에서 월 이용권을 꼭 해지해 주세요.'))));
+  return box;
+}
+
+function group(label, rows) {
+  const g = el('div', { class: 'set-group' });
+  if (label) g.append(el('div', { class: 'set-label' }, `<span>${esc(label)}</span>`));
+  const list = el('div', { class: 'set-list' });
+  for (const r of rows) list.append(r);
+  g.append(list);
+  return g;
+}
+
+function row(title, sub, { ico, tone, badge, value, onClick } = {}) {
+  const r = el('div', { class: 'set-row' });
+  r.innerHTML =
+    `<div class="set-ico ico-${tone}">${icon(ico)}</div>
+     <div class="set-row-main">
+       <div class="set-row-title">${esc(title)}${badge ? ` <span class="new-pill">${esc(badge)}</span>` : ''}</div>
+       <div class="set-row-sub">${esc(sub)}</div>
+     </div>`
+    + (value ? `<div class="set-row-val">${esc(value)}</div>` : '')
+    + (onClick ? icon('chev', 'chev') : '');
+  if (onClick) { r.style.cursor = 'pointer'; r.addEventListener('click', onClick); }
+  return r;
+}
